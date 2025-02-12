@@ -9,6 +9,7 @@ using OurHeritage.Service.Interfaces;
 using System.Collections.Concurrent;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 
 namespace OurHeritage.Service.Implementations
@@ -318,9 +319,13 @@ namespace OurHeritage.Service.Implementations
 
         private string GenerateOtpCode()
         {
-            var random = new Random();
-
-            return random.Next(100000, 999999).ToString();
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                var bytes = new byte[4]; 
+                rng.GetBytes(bytes);
+                int otp = BitConverter.ToInt32(bytes, 0) & 0x7FFFFFFF; 
+                return (otp % 900000 + 100000).ToString(); 
+            }
         }
 
         public async Task<bool> ResendOtpCode(SendOTPRequest sendOTPRequest)

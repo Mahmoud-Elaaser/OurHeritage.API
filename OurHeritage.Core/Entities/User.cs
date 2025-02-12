@@ -7,9 +7,22 @@ namespace OurHeritage.Core.Entities
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }
-
         public string? ProfilePicture { get; set; }
+        public string? CoverProfilePicture { get; set; }
         public Gender Gender { get; set; }
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
+        public string Email { get; set; }
+        public string? Phone { get; set; }
+        public string ?Skills { get; set; }
+        public string ?Connections { get; set; }
+        //public string ?Address { get; set; }
+      
+      
+        public ICollection<HandiCraft> ?HandiCrafts { get; set; }
+        public ICollection<Order> ?Orders { get; set; }
+        public ICollection<Comment> ?Comments { get; set; }
+        public ICollection<Like> ?Likes { get; set; }
+        public ICollection<User> Followings { get; set; } 
+        public ICollection<User> Followers { get; set; } 
     }
 }

@@ -155,6 +155,106 @@ namespace OurHeritage.Core.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("OrderHandiCraft", b =>
+                {
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("HandiCraftId")
+                        .HasColumnType("int");
+
+                    b.HasKey("OrderId", "HandiCraftId");
+
+                    b.HasIndex("HandiCraftId");
+
+                    b.ToTable("OrderHandiCraft");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Category", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Categories");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Comment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("CulturalArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DateCreated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CulturalArticleId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Comments");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.CulturalArticle", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("DateCreated")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageURL")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("CulturalArticles");
+                });
+
             modelBuilder.Entity("OurHeritage.Core.Entities.Follow", b =>
                 {
                     b.Property<int>("FollowerId")
@@ -167,7 +267,99 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("FollowingId");
 
-                    b.ToTable("Follow");
+                    b.ToTable("Follows");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.HandiCraft", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("DateAdded")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageOrVideo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("Price")
+                        .HasColumnType("float");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("HandiCrafts");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Like", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CulturalArticleId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CulturalArticleId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Likes");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Order", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("OrderDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<double>("TotalPrice")
+                        .HasColumnType("float");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Orders");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.User", b =>
@@ -185,10 +377,17 @@ namespace OurHeritage.Core.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Connections")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("CoverProfilePicture")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime>("DateJoined")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
+                        .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
@@ -197,8 +396,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Gender")
                         .HasColumnType("int");
@@ -224,6 +422,9 @@ namespace OurHeritage.Core.Migrations
                     b.Property<string>("PasswordHash")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("PhoneNumber")
                         .HasColumnType("nvarchar(max)");
 
@@ -234,6 +435,9 @@ namespace OurHeritage.Core.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SecurityStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Skills")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("TwoFactorEnabled")
@@ -253,7 +457,45 @@ namespace OurHeritage.Core.Migrations
                         .HasDatabaseName("UserNameIndex")
                         .HasFilter("[NormalizedUserName] IS NOT NULL");
 
-                    b.ToTable("AspNetUsers", (string)null);
+                    b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.favorite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("HandiCraftId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("HandiCraftId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Favorites");
+                });
+
+            modelBuilder.Entity("UserUser", b =>
+                {
+                    b.Property<int>("FollowersId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("FollowingsId")
+                        .HasColumnType("int");
+
+                    b.HasKey("FollowersId", "FollowingsId");
+
+                    b.HasIndex("FollowingsId");
+
+                    b.ToTable("UserUser");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>
@@ -307,6 +549,59 @@ namespace OurHeritage.Core.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("OrderHandiCraft", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.HandiCraft", null)
+                        .WithMany()
+                        .HasForeignKey("HandiCraftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Comment", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.CulturalArticle", "CulturalArticle")
+                        .WithMany("Comments")
+                        .HasForeignKey("CulturalArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.User", "User")
+                        .WithMany("Comments")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CulturalArticle");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.CulturalArticle", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.Category", "Category")
+                        .WithMany("CulturalArticles")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("OurHeritage.Core.Entities.Follow", b =>
                 {
                     b.HasOne("OurHeritage.Core.Entities.User", "Follower")
@@ -324,6 +619,119 @@ namespace OurHeritage.Core.Migrations
                     b.Navigation("Follower");
 
                     b.Navigation("Following");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.HandiCraft", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.Category", "Category")
+                        .WithMany("HandiCrafts")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.User", "User")
+                        .WithMany("HandiCrafts")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Category");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Like", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.CulturalArticle", "CulturalArticle")
+                        .WithMany("Likes")
+                        .HasForeignKey("CulturalArticleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.User", "User")
+                        .WithMany("Likes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CulturalArticle");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Order", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.User", "User")
+                        .WithMany("Orders")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.favorite", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.HandiCraft", "HandiCraft")
+                        .WithMany("Favorite")
+                        .HasForeignKey("HandiCraftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("HandiCraft");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("UserUser", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("FollowersId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("FollowingsId")
+                        .OnDelete(DeleteBehavior.ClientCascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Category", b =>
+                {
+                    b.Navigation("CulturalArticles");
+
+                    b.Navigation("HandiCrafts");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.CulturalArticle", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Likes");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.HandiCraft", b =>
+                {
+                    b.Navigation("Favorite");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.User", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("HandiCrafts");
+
+                    b.Navigation("Likes");
+
+                    b.Navigation("Orders");
                 });
 #pragma warning restore 612, 618
         }

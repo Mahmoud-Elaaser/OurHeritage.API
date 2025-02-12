@@ -13,7 +13,7 @@ namespace OurHeritage.API
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
@@ -88,17 +88,38 @@ namespace OurHeritage.API
                 };
             });
             #endregion
-
             var app = builder.Build();
+            #region update-Database
 
-            // Configure the HTTP request pipeline.
-            //if (app.Environment.IsDevelopment())
-            //{
-            //    app.UseSwagger();
-            //    app.UseSwaggerUI();
-            //}
 
-            // for hosting swagger
+
+            // StoreContext dbContext = new StoreContext(); // Invalid
+            //await dbContext.Database.MigrateAsync();
+            using var Scope = app.Services.CreateScope();
+            //Group of Services LifeTime Scoped
+            //using is syntax suger that using to close connection instead of {Despose()}
+            var Services = Scope.ServiceProvider; //Services Its Self
+            var LoggerFactory = Services.GetRequiredService<ILoggerFactory>();
+
+            try
+            {
+
+                var DbContext = Services.GetRequiredService<ApplicationDbContext>();
+                // Ask CLR For Creating Object Explicitly
+                await DbContext.Database.MigrateAsync();
+
+                var UserManger = Services.GetRequiredService<UserManager<User>>();
+                //await AppIdentityDbContextSeed.SeedAppUser(UserManger);
+                //await StoreContextSeed.SeedAsync(DbContext);
+            }
+            catch (Exception ex)
+            {
+                var Logger = LoggerFactory.CreateLogger<Program>();
+                Logger.LogError(ex, "An Error Occured During Appling The Migration");
+            }
+            #endregion
+
+          
             app.UseSwagger();
             app.UseSwaggerUI();
 
