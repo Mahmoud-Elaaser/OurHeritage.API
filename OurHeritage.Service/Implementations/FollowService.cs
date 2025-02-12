@@ -2,6 +2,7 @@
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.FollowDto;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.Service.Implementations

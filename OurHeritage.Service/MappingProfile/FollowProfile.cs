@@ -1,6 +1,6 @@
 ﻿using AutoMapper;
 using OurHeritage.Core.Entities;
-using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.FollowDto;
 
 namespace OurHeritage.Service.MappingProfile
 {

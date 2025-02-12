@@ -20,7 +20,7 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpGet]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<GetUserDto>>> GetAllUsers()
         {
             var users = await _userService.GetAllUsersAsync();
@@ -34,8 +34,6 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(GetUserDto), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetUserById(int id)
         {
             var user = await _userService.GetUserByIdAsync(id);

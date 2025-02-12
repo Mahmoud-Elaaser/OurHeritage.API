@@ -13,6 +13,11 @@ namespace OurHeritage.Service
             services.AddTransient<IEmailService, EmailService>();
             services.AddTransient<IUserService, UserService>();
             services.AddTransient<IFollowService, FollowService>();
+            services.AddTransient<IHandiCraftService, HandiCraftService>();
+            services.AddTransient<ICategoryService, CategoryService>();
+            services.AddTransient<ICommentService, CommentService>();
+            services.AddTransient<ILikeService, LikeService>();
+            services.AddTransient<ICulturalArticleService, CulturalArticleService>();
             services.AddMemoryCache();
 
 

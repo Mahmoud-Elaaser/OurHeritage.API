@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
-using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.FollowDto;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.API.Controllers

@@ -170,6 +170,29 @@ namespace OurHeritage.Core.Migrations
                     b.ToTable("OrderHandiCraft");
                 });
 
+            modelBuilder.Entity("OurHeritage.Core.Entities.BlockUser", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("BlockedById")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BlockedUserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BlockedById");
+
+                    b.HasIndex("BlockedUserId");
+
+                    b.ToTable("BlockUsers");
+                });
+
             modelBuilder.Entity("OurHeritage.Core.Entities.Category", b =>
                 {
                     b.Property<int>("Id")
@@ -267,7 +290,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("FollowingId");
 
-                    b.ToTable("Follows");
+                    b.ToTable("Follow");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.HandiCraft", b =>
@@ -321,6 +344,9 @@ namespace OurHeritage.Core.Migrations
 
                     b.Property<int>("CulturalArticleId")
                         .HasColumnType("int");
+
+                    b.Property<DateTime>("LikedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("UserId")
                         .HasColumnType("int");
@@ -503,7 +529,7 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -512,7 +538,7 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -521,7 +547,7 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -530,13 +556,13 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<int>", null)
                         .WithMany()
                         .HasForeignKey("RoleId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("OurHeritage.Core.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -545,7 +571,7 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -562,6 +588,25 @@ namespace OurHeritage.Core.Migrations
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.BlockUser", b =>
+                {
+                    b.HasOne("OurHeritage.Core.Entities.User", "BlockedBy")
+                        .WithMany()
+                        .HasForeignKey("BlockedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("OurHeritage.Core.Entities.User", "BlockedUser")
+                        .WithMany()
+                        .HasForeignKey("BlockedUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BlockedBy");
+
+                    b.Navigation("BlockedUser");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Comment", b =>
@@ -588,13 +633,13 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.Category", "Category")
                         .WithMany("CulturalArticles")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("OurHeritage.Core.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Category");
@@ -626,13 +671,13 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.Category", "Category")
                         .WithMany("HandiCrafts")
                         .HasForeignKey("CategoryId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("OurHeritage.Core.Entities.User", "User")
                         .WithMany("HandiCrafts")
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Category");
@@ -681,7 +726,7 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("HandiCraft");
@@ -694,13 +739,13 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("FollowersId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("OurHeritage.Core.Entities.User", null)
                         .WithMany()
                         .HasForeignKey("FollowingsId")
-                        .OnDelete(DeleteBehavior.ClientCascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

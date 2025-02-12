@@ -30,6 +30,7 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             var result = await _authService.LoginAsync(model);

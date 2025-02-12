@@ -1,4 +1,4 @@
-﻿namespace OurHeritage.Service.DTOs
+﻿namespace OurHeritage.Service.DTOs.FollowDto
 {
     public class GetFollowerDto
     {

@@ -13,7 +13,7 @@ namespace OurHeritage.Core.Context
         {
         }
 
-        public DbSet<User> Users { get; set; }
+        public DbSet<BlockUser> BlockUsers { get; set; }
         public DbSet<CulturalArticle> CulturalArticles { get; set; }
         public DbSet<HandiCraft> HandiCrafts { get; set; }
         public DbSet<Category> Categories { get; set; }
@@ -21,70 +21,75 @@ namespace OurHeritage.Core.Context
         public DbSet<Comment> Comments { get; set; }
         public DbSet<Like> Likes { get; set; }
         public DbSet<favorite> Favorites { get; set; }
-        public DbSet<Follow> Follows { get; set; }
+        public DbSet<Follow> Followers { get; set; }
+        public DbSet<Follow> Followings { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
-            // ✅ ضبط مفاتيح ASP.NET Identity
-            modelBuilder.Entity<IdentityUserLogin<int>>().HasKey(l => new { l.LoginProvider, l.ProviderKey });
-            modelBuilder.Entity<IdentityUserRole<int>>().HasKey(r => new { r.UserId, r.RoleId });
-            modelBuilder.Entity<IdentityUserToken<int>>().HasKey(t => new { t.UserId, t.LoginProvider, t.Name });
+            foreach (var relationship in modelBuilder.Model
+                .GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+            {
+                relationship.DeleteBehavior = DeleteBehavior.Restrict;
+            }
 
-            // ✅ ضبط اسم جدول `Users`
+            modelBuilder.Entity<IdentityUserLogin<int>>()
+                .HasKey(l => new { l.LoginProvider, l.ProviderKey });
+            modelBuilder.Entity<IdentityUserRole<int>>()
+                .HasKey(r => new { r.UserId, r.RoleId });
+            modelBuilder.Entity<IdentityUserToken<int>>()
+                .HasKey(t => new { t.UserId, t.LoginProvider, t.Name });
+
             modelBuilder.Entity<User>().ToTable("Users");
 
-            // ✅ منع الحذف التتابعي (Cascade Delete) في العلاقات المعقدة
+            modelBuilder.Entity<HandiCraft>()
+                .HasOne(h => h.User)
+                .WithMany(u => u.HandiCrafts)
+                .HasForeignKey(h => h.UserId);
+
             modelBuilder.Entity<Comment>()
                 .HasOne(c => c.User)
                 .WithMany(u => u.Comments)
-                .HasForeignKey(c => c.UserId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(c => c.UserId);
 
             modelBuilder.Entity<Comment>()
                 .HasOne(c => c.CulturalArticle)
                 .WithMany(ca => ca.Comments)
-                .HasForeignKey(c => c.CulturalArticleId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(c => c.CulturalArticleId);
 
-            modelBuilder.Entity<Follow>().HasKey(f => new { f.FollowerId, f.FollowingId });
+            modelBuilder.Entity<Follow>()
+                .HasKey(f => new { f.FollowerId, f.FollowingId });
 
             modelBuilder.Entity<Follow>()
                 .HasOne(f => f.Follower)
                 .WithMany()
-                .HasForeignKey(f => f.FollowerId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(f => f.FollowerId);
 
             modelBuilder.Entity<Follow>()
                 .HasOne(f => f.Following)
                 .WithMany()
-                .HasForeignKey(f => f.FollowingId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(f => f.FollowingId);
 
             modelBuilder.Entity<User>()
                 .HasMany(u => u.Orders)
                 .WithOne(o => o.User)
-                .HasForeignKey(o => o.UserId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(o => o.UserId);
 
             modelBuilder.Entity<User>()
                 .HasMany(u => u.Likes)
                 .WithOne(l => l.User)
-                .HasForeignKey(l => l.UserId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(l => l.UserId);
 
             modelBuilder.Entity<CulturalArticle>()
                 .HasMany(ca => ca.Likes)
                 .WithOne(l => l.CulturalArticle)
-                .HasForeignKey(l => l.CulturalArticleId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(l => l.CulturalArticleId);
 
             modelBuilder.Entity<HandiCraft>()
                 .HasMany(h => h.Favorite)
                 .WithOne(f => f.HandiCraft)
-                .HasForeignKey(f => f.HandiCraftId)
-                .OnDelete(DeleteBehavior.Restrict); // ⬅️ الحل هنا
+                .HasForeignKey(f => f.HandiCraftId);
 
             modelBuilder.Entity<HandiCraft>()
                 .HasMany(h => h.Orders)

@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace OurHeritage.Core.Migrations
 {
     /// <inheritdoc />
-    public partial class DataBase : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -92,7 +92,7 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.RoleId,
                         principalTable: "AspNetRoles",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -113,7 +113,7 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -133,7 +133,7 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -151,13 +151,13 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.RoleId,
                         principalTable: "AspNetRoles",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_AspNetUserRoles_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -177,7 +177,33 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "BlockUsers",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BlockedById = table.Column<int>(type: "int", nullable: false),
+                    BlockedUserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_BlockUsers", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_BlockUsers_Users_BlockedById",
+                        column: x => x.BlockedById,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_BlockUsers_Users_BlockedUserId",
+                        column: x => x.BlockedUserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -201,17 +227,17 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.CategoryId,
                         principalTable: "Categories",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_CulturalArticles_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
-                name: "Follows",
+                name: "Follow",
                 columns: table => new
                 {
                     FollowerId = table.Column<int>(type: "int", nullable: false),
@@ -219,15 +245,15 @@ namespace OurHeritage.Core.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Follows", x => new { x.FollowerId, x.FollowingId });
+                    table.PrimaryKey("PK_Follow", x => new { x.FollowerId, x.FollowingId });
                     table.ForeignKey(
-                        name: "FK_Follows_Users_FollowerId",
+                        name: "FK_Follow_Users_FollowerId",
                         column: x => x.FollowerId,
                         principalTable: "Users",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_Follows_Users_FollowingId",
+                        name: "FK_Follow_Users_FollowingId",
                         column: x => x.FollowingId,
                         principalTable: "Users",
                         principalColumn: "Id",
@@ -256,13 +282,13 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.CategoryId,
                         principalTable: "Categories",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_HandiCrafts_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -302,12 +328,13 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.FollowersId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_UserUser_Users_FollowingsId",
                         column: x => x.FollowingsId,
                         principalTable: "Users",
-                        principalColumn: "Id");
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -345,7 +372,8 @@ namespace OurHeritage.Core.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: false),
-                    CulturalArticleId = table.Column<int>(type: "int", nullable: false)
+                    CulturalArticleId = table.Column<int>(type: "int", nullable: false),
+                    LikedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -387,7 +415,7 @@ namespace OurHeritage.Core.Migrations
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -442,6 +470,16 @@ namespace OurHeritage.Core.Migrations
                 column: "RoleId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_BlockUsers_BlockedById",
+                table: "BlockUsers",
+                column: "BlockedById");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_BlockUsers_BlockedUserId",
+                table: "BlockUsers",
+                column: "BlockedUserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Comments_CulturalArticleId",
                 table: "Comments",
                 column: "CulturalArticleId");
@@ -472,8 +510,8 @@ namespace OurHeritage.Core.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Follows_FollowingId",
-                table: "Follows",
+                name: "IX_Follow_FollowingId",
+                table: "Follow",
                 column: "FollowingId");
 
             migrationBuilder.CreateIndex(
@@ -543,13 +581,16 @@ namespace OurHeritage.Core.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "BlockUsers");
+
+            migrationBuilder.DropTable(
                 name: "Comments");
 
             migrationBuilder.DropTable(
                 name: "Favorites");
 
             migrationBuilder.DropTable(
-                name: "Follows");
+                name: "Follow");
 
             migrationBuilder.DropTable(
                 name: "Likes");

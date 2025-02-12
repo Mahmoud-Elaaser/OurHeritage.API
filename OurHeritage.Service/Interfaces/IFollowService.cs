@@ -1,4 +1,5 @@
 ﻿using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.FollowDto;
 
 namespace OurHeritage.Service.Interfaces
 {

@@ -13,16 +13,15 @@ namespace OurHeritage.Core.Entities
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
         public string Email { get; set; }
         public string? Phone { get; set; }
-        public string ?Skills { get; set; }
-        public string ?Connections { get; set; }
-        //public string ?Address { get; set; }
-      
-      
-        public ICollection<HandiCraft> ?HandiCrafts { get; set; }
-        public ICollection<Order> ?Orders { get; set; }
-        public ICollection<Comment> ?Comments { get; set; }
-        public ICollection<Like> ?Likes { get; set; }
-        public ICollection<User> Followings { get; set; } 
-        public ICollection<User> Followers { get; set; } 
+        public string? Skills { get; set; }
+        public string? Connections { get; set; }
+
+
+        public ICollection<HandiCraft>? HandiCrafts { get; set; }
+        public ICollection<Order>? Orders { get; set; }
+        public ICollection<Comment>? Comments { get; set; }
+        public ICollection<Like>? Likes { get; set; }
+        public ICollection<User> Followings { get; set; }
+        public ICollection<User> Followers { get; set; }
     }
 }
