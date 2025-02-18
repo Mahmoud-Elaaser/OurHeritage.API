@@ -18,7 +18,6 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost("register")]
-        [AllowAnonymous]
         public async Task<IActionResult> RegisterUser([FromBody] RegisterDto model)
         {
             var result = await _authService.RegisterAsync(model);
@@ -30,7 +29,6 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("login")]
-        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             var result = await _authService.LoginAsync(model);
@@ -49,7 +47,7 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("assign-role")]
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         public async Task<IActionResult> AssignRole([FromBody] RoleDto model)
         {
             var result = await _authService.AssignRoleAsync(model);

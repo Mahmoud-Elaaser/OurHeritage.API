@@ -1,9 +1,12 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.SignalR;
 using OurHeritage.Core.Entities;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.FollowDto;
 using OurHeritage.Service.Interfaces;
+using OurHeritage.Service.SignalR;
 
 namespace OurHeritage.Service.Implementations
 {
@@ -11,12 +14,15 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IHubContext<NotificationHub> _hubContext;
 
-        public FollowService(IUnitOfWork unitOfWork, IMapper mapper)
+        public FollowService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _hubContext = hubContext;
         }
+
 
         public async Task<ResponseDto> FollowUserAsync(FollowDto createFollowDto)
         {
@@ -32,7 +38,7 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            /// Check if the user is already following this user
+            // Check if the user is already following this user
             var existingFollow = await _unitOfWork.Repository<Follow>()
                 .FindAsync(f => f.FollowerId == createFollowDto.FollowerId
                 && f.FollowingId == createFollowDto.FollowingId);
@@ -49,9 +55,10 @@ namespace OurHeritage.Service.Implementations
             var follow = _mapper.Map<Follow>(createFollowDto);
 
             await _unitOfWork.Repository<Follow>().AddAsync(follow);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
 
-
+            // SignalR Notification
+            await _hubContext.Clients.User(createFollowDto.FollowingId.ToString()).SendAsync("ReceiveNotification", $"User with id: {createFollowDto.FollowerId} followed you");
 
             return new ResponseDto
             {
@@ -78,7 +85,7 @@ namespace OurHeritage.Service.Implementations
             }
 
             _unitOfWork.Repository<Follow>().Delete(follow);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
 
             return new ResponseDto
             {
@@ -86,7 +93,6 @@ namespace OurHeritage.Service.Implementations
                 Message = "Unfollowed successfully."
             };
         }
-
 
         public async Task<ResponseDto> GetFollowersAsync(int userId)
         {
@@ -100,8 +106,9 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            var followers = await _unitOfWork.Repository<Follow>()
-                .GetAllPredicated(f => f.FollowingId == userId, new[] { "Follower" });
+            var specParams = new SpecParams { FilterId = userId };
+            var spec = new EntitySpecification<Follow>(specParams, f => f.FollowingId == userId);
+            var followers = await _unitOfWork.Repository<Follow>().ListAsync(spec);
 
             var followerDtos = _mapper.Map<IEnumerable<GetFollowerDto>>(followers);
 
@@ -124,8 +131,9 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            var following = await _unitOfWork.Repository<Follow>()
-                .GetAllPredicated(f => f.FollowerId == userId, new[] { "Following" });
+            var specParams = new SpecParams { FilterId = userId };
+            var spec = new EntitySpecification<Follow>(specParams, f => f.FollowerId == userId);
+            var following = await _unitOfWork.Repository<Follow>().ListAsync(spec);
 
             var followingDtos = following.Select(f => new GetFollowerDto
             {

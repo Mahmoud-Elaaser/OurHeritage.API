@@ -31,7 +31,7 @@ namespace OurHeritage.Service.Implementations
             }
             var user = _mapper.Map<User>(dto);
             await _unitOfWork.Repository<User>().AddAsync(user);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -64,7 +64,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetAllUsersAsync()
         {
-            var users = await _unitOfWork.Repository<User>().GetAllAsync();
+            var users = await _unitOfWork.Repository<User>().ListAllAsync();
 
             var mappedUsers = _mapper.Map<IEnumerable<GetUserDto>>(users);
 
@@ -75,7 +75,6 @@ namespace OurHeritage.Service.Implementations
                 Models = mappedUsers
             };
         }
-
 
         public async Task<ResponseDto> UpdateUserAsync(int userId, CreateOrUpdateUserDto dto)
         {
@@ -91,7 +90,7 @@ namespace OurHeritage.Service.Implementations
             }
             _mapper.Map(dto, user);
             _unitOfWork.Repository<User>().Update(user);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -113,7 +112,7 @@ namespace OurHeritage.Service.Implementations
                 };
             }
             _unitOfWork.Repository<User>().Delete(user);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -121,6 +120,5 @@ namespace OurHeritage.Service.Implementations
                 Message = "User deleted successfully"
             };
         }
-
     }
 }

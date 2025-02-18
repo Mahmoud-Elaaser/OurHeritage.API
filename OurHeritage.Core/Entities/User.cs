@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using OurHeritage.Core.Enums;
 
 namespace OurHeritage.Core.Entities
 {
@@ -9,7 +8,7 @@ namespace OurHeritage.Core.Entities
         public string LastName { get; set; }
         public string? ProfilePicture { get; set; }
         public string? CoverProfilePicture { get; set; }
-        public Gender Gender { get; set; }
+        public string Gender { get; set; }
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
         public string Email { get; set; }
         public string? Phone { get; set; }
@@ -18,6 +17,7 @@ namespace OurHeritage.Core.Entities
 
 
         public ICollection<HandiCraft>? HandiCrafts { get; set; }
+        public ICollection<CulturalArticle>? culturalArticles { get; set; }
         public ICollection<Order>? Orders { get; set; }
         public ICollection<Comment>? Comments { get; set; }
         public ICollection<Like>? Likes { get; set; }

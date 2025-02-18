@@ -1,35 +1,37 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using OurHeritage.Repo.Repositories.Interfaces;
+using OurHeritage.Core.Specifications;
 
 namespace OurHeritage.Repo.Repositories.Implementations
 {
-    public static class SpecificationEvaluator<T> where T : class
+    public class SpecificationEvaluator<T> where T : class
     {
-        public static IQueryable<T> GetQuery(IQueryable<T> EntryPoint, ISpecifications<T> Spec)
+        public static IQueryable<T> GetQuery(IQueryable<T> inputQuery, ISpecification<T> spec)
         {
-            var Query = EntryPoint;
-            if (Spec.Criteria != null)
+            var query = inputQuery;
+
+            if (spec.Criteria != null)
             {
-                Query = Query.Where(Spec.Criteria);
-            }
-            /// Ascending
-            if (Spec.OrderBy != null)
-            {
-                Query = Query.OrderBy(Spec.OrderBy);
-            }
-            if (Spec.OrderByDesc != null)
-            {
-                Query = Query.OrderByDescending(Spec.OrderByDesc);
-            }
-            if (Spec.IsPaginationEnabled)
-            {
-                Query = Query.Skip(Spec.Skip).Take(Spec.Take);
+                query = query.Where(spec.Criteria);
             }
 
-            Query = Spec.Includes.Aggregate(Query, (CurrentQuery, IncludeExpression)
-                => CurrentQuery.Include(IncludeExpression));
+            query = spec.Includes.Aggregate(query, (current, include) => current.Include(include));
 
-            return Query;
+            if (spec.OrderBy != null)
+            {
+                query = query.OrderBy(spec.OrderBy);
+            }
+
+            if (spec.OrderByDescending != null)
+            {
+                query = query.OrderByDescending(spec.OrderByDescending);
+            }
+
+            if (spec.IsPagingEnabled)
+            {
+                query = query.Skip(spec.Skip).Take(spec.Take);
+            }
+
+            return query;
         }
     }
 }

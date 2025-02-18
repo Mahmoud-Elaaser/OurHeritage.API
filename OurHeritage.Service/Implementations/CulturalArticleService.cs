@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using OurHeritage.Core.Entities;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.CulturalArticleDto;
@@ -19,12 +20,10 @@ namespace OurHeritage.Service.Implementations
             _mapper = mapper;
         }
 
-
-        /// retrieve all statistcs of a specific article such as: number of comments, and likes
-        public async Task<GenericResponseDto<CulturalArticleStatisticsDto>> GetCulturalArticleStatisticsAsync(int CulturalArticleId)
+        public async Task<GenericResponseDto<CulturalArticleStatisticsDto>> GetCulturalArticleStatisticsAsync(int culturalArticleId)
         {
-            var CulturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(CulturalArticleId);
-            if (CulturalArticle == null)
+            var culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(culturalArticleId);
+            if (culturalArticle == null)
             {
                 return new GenericResponseDto<CulturalArticleStatisticsDto>
                 {
@@ -33,17 +32,15 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            /// Get counts
-            var likesCount = await _unitOfWork.Repository<Like>()
-                .CountAsync(like => like.CulturalArticleId == CulturalArticleId);
-            var commentsCount = await _unitOfWork.Repository<Comment>()
-                .CountAsync(comment => comment.CulturalArticleId == CulturalArticleId);
-            var CulturalArticlesCount = await _unitOfWork.Repository<CulturalArticle>()
-                .CountAsync(culturalArticle => culturalArticle.Id == CulturalArticleId);
+            var likeSpec = new EntitySpecification<Like>(new SpecParams(), l => l.CulturalArticleId == culturalArticleId);
+            var commentSpec = new EntitySpecification<Comment>(new SpecParams(), c => c.CulturalArticleId == culturalArticleId);
+
+            var likesCount = await _unitOfWork.Repository<Like>().CountAsync(likeSpec);
+            var commentsCount = await _unitOfWork.Repository<Comment>().CountAsync(commentSpec);
 
             var statisticsDto = new CulturalArticleStatisticsDto
             {
-                CulturalArticleId = CulturalArticleId,
+                CulturalArticleId = culturalArticleId,
                 Likes = likesCount,
                 Comments = commentsCount,
             };
@@ -58,8 +55,8 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetAllCulturalArticlesAsync()
         {
-            var CulturalArticles = await _unitOfWork.Repository<CulturalArticle>().GetAllAsync();
-            var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(CulturalArticles);
+            var culturalArticles = await _unitOfWork.Repository<CulturalArticle>().ListAllAsync();
+            var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(culturalArticles);
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -67,14 +64,13 @@ namespace OurHeritage.Service.Implementations
                 Models = mappedCulturalArticles
             };
         }
+
         public async Task<ResponseDto> GetUserFeedAsync(int userId)
         {
-            /// Fetch all blocked users and filter in memory
-            var allMutedUsers = await _unitOfWork.Repository<BlockUser>().GetAllAsync();
+            var allMutedUsers = await _unitOfWork.Repository<BlockUser>().ListAllAsync();
             var mutedUserIds = allMutedUsers.Where(mu => mu.BlockedById == userId).Select(mu => mu.BlockedUserId).ToList();
 
-            /// Fetch all CulturalArticles and filter [All CulturalArticles except Blooked Users]
-            var allCulturalArticles = await _unitOfWork.Repository<CulturalArticle>().GetAllAsync();
+            var allCulturalArticles = await _unitOfWork.Repository<CulturalArticle>().ListAllAsync();
             var filteredCulturalArticles = allCulturalArticles.Where(t => !mutedUserIds.Contains(t.UserId));
 
             var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(filteredCulturalArticles);
@@ -89,8 +85,8 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetCulturalArticleByIdAsync(int id)
         {
-            var CulturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
-            if (CulturalArticle == null)
+            var culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
+            if (culturalArticle == null)
             {
                 return new ResponseDto
                 {
@@ -100,7 +96,7 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            var mappedCulturalArticle = _mapper.Map<GetCulturalArticleDto>(CulturalArticle);
+            var mappedCulturalArticle = _mapper.Map<GetCulturalArticleDto>(culturalArticle);
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -109,10 +105,10 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> GetCulturalArticlesWithSpecAsync(ISpecifications<CulturalArticle> spec)
+        public async Task<ResponseDto> GetCulturalArticlesWithSpecAsync(ISpecification<CulturalArticle> spec)
         {
-            var CulturalArticles = await _unitOfWork.Repository<CulturalArticle>().GetAllAsyncWithSpec(spec);
-            var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(CulturalArticles);
+            var culturalArticles = await _unitOfWork.Repository<CulturalArticle>().ListAsync(spec);
+            var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(culturalArticles);
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -123,8 +119,8 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> FindCulturalArticleAsync(Expression<Func<CulturalArticle, bool>> predicate)
         {
-            var CulturalArticle = await _unitOfWork.Repository<CulturalArticle>().FindAsync(predicate);
-            if (CulturalArticle == null)
+            var culturalArticle = await _unitOfWork.Repository<CulturalArticle>().FindAsync(predicate);
+            if (culturalArticle == null)
             {
                 return new ResponseDto
                 {
@@ -134,7 +130,7 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            var mappedCulturalArticle = _mapper.Map<GetCulturalArticleDto>(CulturalArticle);
+            var mappedCulturalArticle = _mapper.Map<GetCulturalArticleDto>(culturalArticle);
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -143,11 +139,10 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> GetCulturalArticlesByPredicateAsync(Expression<Func<CulturalArticle, bool>> predicate,
-            string[] includes = null)
+        public async Task<ResponseDto> GetCulturalArticlesByPredicateAsync(Expression<Func<CulturalArticle, bool>> predicate, string[] includes = null)
         {
-            var CulturalArticles = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(predicate, includes);
-            var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(CulturalArticles);
+            var culturalArticles = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(predicate, includes);
+            var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(culturalArticles);
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -156,22 +151,21 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-
         public async Task<ResponseDto> AddCulturalArticleAsync(CreateOrUpdateCulturalArticleDto createCulturalArticleDto)
         {
-            var CulturalArticle = _mapper.Map<CulturalArticle>(createCulturalArticleDto);
-            await _unitOfWork.Repository<CulturalArticle>().AddAsync(CulturalArticle);
-            await _unitOfWork.Complete();
+            var culturalArticle = _mapper.Map<CulturalArticle>(createCulturalArticleDto);
+            await _unitOfWork.Repository<CulturalArticle>().AddAsync(culturalArticle);
+            await _unitOfWork.CompleteAsync();
 
-            var mappedCulturalArticle = _mapper.Map<CreateOrUpdateCulturalArticleDto>(CulturalArticle);
+            var mappedCulturalArticle = _mapper.Map<CreateOrUpdateCulturalArticleDto>(culturalArticle);
             return new ResponseDto
             {
                 IsSucceeded = true,
-                Status = 200,
-                Model = mappedCulturalArticle
+                Status = 201,
+                Model = mappedCulturalArticle,
+                Message = "CulturalArticle created successfully"
             };
         }
-
 
         public async Task<ResponseDto> UpdateCulturalArticleAsync(int id, CreateOrUpdateCulturalArticleDto updateCulturalArticleDto)
         {
@@ -188,7 +182,7 @@ namespace OurHeritage.Service.Implementations
 
             _mapper.Map(updateCulturalArticleDto, existingCulturalArticle);
             _unitOfWork.Repository<CulturalArticle>().Update(existingCulturalArticle);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
 
             var mappedCulturalArticle = _mapper.Map<GetCulturalArticleDto>(existingCulturalArticle);
             return new ResponseDto
@@ -199,11 +193,10 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-
         public async Task<ResponseDto> DeleteCulturalArticleAsync(int id)
         {
-            var CulturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
-            if (CulturalArticle == null)
+            var culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
+            if (culturalArticle == null)
             {
                 return new ResponseDto
                 {
@@ -213,8 +206,8 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            _unitOfWork.Repository<CulturalArticle>().Delete(CulturalArticle);
-            await _unitOfWork.Complete();
+            _unitOfWork.Repository<CulturalArticle>().Delete(culturalArticle);
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -222,7 +215,5 @@ namespace OurHeritage.Service.Implementations
                 Message = "CulturalArticle deleted successfully."
             };
         }
-
-
     }
 }

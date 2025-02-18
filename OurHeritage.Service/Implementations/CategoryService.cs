@@ -31,7 +31,7 @@ namespace OurHeritage.Service.Implementations
             }
             var Category = _mapper.Map<Category>(dto);
             await _unitOfWork.Repository<Category>().AddAsync(Category);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -64,7 +64,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetAllCategoriesAsync()
         {
-            var Categorys = await _unitOfWork.Repository<Category>().GetAllAsync();
+            var Categorys = await _unitOfWork.Repository<Category>().ListAllAsync();
 
             var mappedCategorys = _mapper.Map<IEnumerable<GetCategoryDto>>(Categorys);
 
@@ -91,7 +91,7 @@ namespace OurHeritage.Service.Implementations
             }
             _mapper.Map(dto, Category);
             _unitOfWork.Repository<Category>().Update(Category);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -113,7 +113,7 @@ namespace OurHeritage.Service.Implementations
                 };
             }
             _unitOfWork.Repository<Category>().Delete(Category);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,

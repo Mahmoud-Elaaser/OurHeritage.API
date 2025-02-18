@@ -321,10 +321,10 @@ namespace OurHeritage.Service.Implementations
         {
             using (var rng = RandomNumberGenerator.Create())
             {
-                var bytes = new byte[4]; 
+                var bytes = new byte[4];
                 rng.GetBytes(bytes);
-                int otp = BitConverter.ToInt32(bytes, 0) & 0x7FFFFFFF; 
-                return (otp % 900000 + 100000).ToString(); 
+                int otp = BitConverter.ToInt32(bytes, 0) & 0x7FFFFFFF;
+                return (otp % 900000 + 100000).ToString();
             }
         }
 

@@ -6,45 +6,39 @@ namespace OurHeritage.Repo.Repositories.Implementations
 {
     public class UnitOfWork : IUnitOfWork
     {
-        private readonly ApplicationDbContext _dbContext;
+        private readonly ApplicationDbContext _context;
         private Hashtable _repositories;
 
-        public UnitOfWork(ApplicationDbContext dbContext)
+        public UnitOfWork(ApplicationDbContext context)
         {
-            _dbContext = dbContext;
-            _repositories = new Hashtable();
+            _context = context;
         }
-        public async Task<int> Complete()
+
+        public IGenericRepository<TEntity> Repository<TEntity>() where TEntity : class
         {
-            return await _dbContext.SaveChangesAsync();
+            if (_repositories == null) _repositories = new Hashtable();
+
+            var type = typeof(TEntity).Name;
+
+            if (!_repositories.ContainsKey(type))
+            {
+                var repositoryType = typeof(GenericRepository<>);
+                var repositoryInstance = Activator.CreateInstance(repositoryType.MakeGenericType(typeof(TEntity)), _context);
+
+                _repositories.Add(type, repositoryInstance);
+            }
+
+            return (IGenericRepository<TEntity>)_repositories[type];
+        }
+
+        public async Task<int> CompleteAsync()
+        {
+            return await _context.SaveChangesAsync();
         }
 
         public void Dispose()
         {
-            _dbContext.Dispose();
-        }
-
-        public IGenericRepository<T> Repository<T>() where T : class
-        {
-            if (_repositories.ContainsKey(typeof(T)))
-            {
-                return _repositories[typeof(T)] as IGenericRepository<T>;
-            }
-
-            var repository = new GenericRepository<T>(_dbContext);
-            _repositories[typeof(T)] = repository;
-            return repository;
-        }
-
-        public IGenericRepository<T> Repository2<T>() where T : class
-        {
-            var Type = typeof(T).Name;
-            if (!_repositories.ContainsKey(Type))
-            {
-                var Repository = new GenericRepository<T>(_dbContext);
-                _repositories.Add(Type, Repository);
-            }
-            return _repositories[Type] as IGenericRepository<T>;
+            _context.Dispose();
         }
     }
 }

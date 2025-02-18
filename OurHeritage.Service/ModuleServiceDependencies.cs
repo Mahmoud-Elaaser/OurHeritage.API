@@ -18,7 +18,11 @@ namespace OurHeritage.Service
             services.AddTransient<ICommentService, CommentService>();
             services.AddTransient<ILikeService, LikeService>();
             services.AddTransient<ICulturalArticleService, CulturalArticleService>();
+            services.AddTransient<IFavoriteService, FavoriteService>();
+            services.AddTransient<IPaginationService, PaginationService>();
+
             services.AddMemoryCache();
+            services.AddSignalR();
 
 
             services.AddAutoMapper(Assembly.GetExecutingAssembly());

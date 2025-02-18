@@ -1,5 +1,6 @@
 ﻿using OurHeritage.Core.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace OurHeritage.Service.DTOs.AuthDto
 {
@@ -15,9 +16,11 @@ namespace OurHeritage.Service.DTOs.AuthDto
         [EmailAddress(ErrorMessage = "Invalid email address.")]
         public string Email { get; set; }
 
-        [Required(ErrorMessage = "Password is required.")]
-        [DataType(DataType.Password)]
+        [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$",
+    ErrorMessage = "Password must be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character.")]
+        [Required]
         public string Password { get; set; }
+
 
         [Required(ErrorMessage = "Confirm Password is required.")]
         [Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
@@ -28,7 +31,8 @@ namespace OurHeritage.Service.DTOs.AuthDto
         public DateTime DateOfBirth { get; set; }
 
         [Required(ErrorMessage = "Gender is required.")]
-        public Gender Gender { get; set; }
+        [JsonConverter(typeof(JsonStringEnumConverter))]
+        public Gender Gender { get; set; } = Gender.Male;
 
     }
 }

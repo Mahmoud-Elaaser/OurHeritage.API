@@ -1,75 +1,90 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
+using OurHeritage.Core.Entities;
+using OurHeritage.Core.Specifications;
+using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs.UserDto;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.API.Controllers
 {
-    [Route("api/[controller]")]
     [ApiController]
+    [Route("api/[controller]")]
     [Authorize]
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IUnitOfWork _unitOfWork;
+        private readonly IPaginationService _paginationService;
 
-        public UsersController(IUserService userService)
+        public UsersController(IUserService userService, IPaginationService paginationService, IUnitOfWork unitOfWork)
         {
             _userService = userService;
+            _paginationService = paginationService;
+            _unitOfWork = unitOfWork;
         }
 
-
+        // Get all users with pagination and filtering (Admin only)
         [HttpGet]
         [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<IEnumerable<GetUserDto>>> GetAllUsers()
+        public async Task<ActionResult<PaginationResponse<GetUserDto>>> GetAllUsers([FromQuery] SpecParams specParams)
         {
-            var users = await _userService.GetAllUsersAsync();
-            if (!users.IsSucceeded)
+            var spec = new EntitySpecification<User>(specParams, e =>
+                (string.IsNullOrEmpty(specParams.Search) || e.UserName.ToLower().Contains(specParams.Search.ToLower())));
+
+            var entities = await _unitOfWork.Repository<User>().ListAsync(spec);
+            var response = _paginationService.Paginate<User, GetUserDto>(entities, specParams, e => new GetUserDto
             {
-                return BadRequest(new ApiResponse(users.Status, users.Message));
-            }
-            return Ok(users.Models);
+                FirstName = e.FirstName,
+                LastName = e.LastName,
+                DateJoined = e.DateJoined,
+                Gender = e.Gender,
+
+            });
+
+            return Ok(response);
         }
 
-
-
+        // Get a user by ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetUserById(int id)
         {
-            var user = await _userService.GetUserByIdAsync(id);
-            if (!user.IsSucceeded)
+            var response = await _userService.GetUserByIdAsync(id);
+            if (!response.IsSucceeded)
             {
-                return BadRequest(new ApiResponse(user.Status, user.Message));
+                return NotFound(new ApiResponse(response.Status, response.Message));
             }
-            return Ok(user.Model);
+            return Ok(response.Model);
         }
 
-
+        // Update an existing user
         [HttpPut("{id}")]
         [ProducesResponseType(typeof(CreateOrUpdateUserDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] CreateOrUpdateUserDto dto)
         {
-            var user = await _userService.UpdateUserAsync(id, dto);
-            if (!user.IsSucceeded)
+            var response = await _userService.UpdateUserAsync(id, dto);
+            if (!response.IsSucceeded)
             {
-                return BadRequest(new ApiResponse(user.Status, user.Message));
+                return BadRequest(new ApiResponse(response.Status, response.Message));
             }
-            return Ok(user.Message);
+            return Ok(response.Message);
         }
 
+        // Delete a user (Admin only)
         [HttpDelete("{id}")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var user = await _userService.DeleteUserAsync(id);
-            if (!user.IsSucceeded)
+            var response = await _userService.DeleteUserAsync(id);
+            if (!response.IsSucceeded)
             {
-                return BadRequest(new ApiResponse(user.Status, user.Message));
+                return BadRequest(new ApiResponse(response.Status, response.Message));
             }
 
-            return Ok(user.Message);
+            return Ok(response.Message);
         }
     }
 }

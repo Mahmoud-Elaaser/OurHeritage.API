@@ -31,7 +31,7 @@ namespace OurHeritage.Service.Implementations
             }
             var HandiCraft = _mapper.Map<HandiCraft>(dto);
             await _unitOfWork.Repository<HandiCraft>().AddAsync(HandiCraft);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -64,7 +64,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetAllHandiCraftsAsync()
         {
-            var HandiCrafts = await _unitOfWork.Repository<HandiCraft>().GetAllAsync();
+            var HandiCrafts = await _unitOfWork.Repository<HandiCraft>().ListAllAsync();
 
             var mappedHandiCrafts = _mapper.Map<IEnumerable<GetHandiCraftDto>>(HandiCrafts);
 
@@ -91,7 +91,7 @@ namespace OurHeritage.Service.Implementations
             }
             _mapper.Map(dto, HandiCraft);
             _unitOfWork.Repository<HandiCraft>().Update(HandiCraft);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -113,7 +113,7 @@ namespace OurHeritage.Service.Implementations
                 };
             }
             _unitOfWork.Repository<HandiCraft>().Delete(HandiCraft);
-            await _unitOfWork.Complete();
+            await _unitOfWork.CompleteAsync();
             return new ResponseDto
             {
                 IsSucceeded = true,

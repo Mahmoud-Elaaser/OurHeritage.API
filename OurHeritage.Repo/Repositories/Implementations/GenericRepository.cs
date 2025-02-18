@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OurHeritage.Core.Context;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using System.Linq.Expressions;
 
@@ -7,140 +8,76 @@ namespace OurHeritage.Repo.Repositories.Implementations
 {
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
-        private readonly ApplicationDbContext _dbContext;
+        private readonly ApplicationDbContext _context;
 
-        public GenericRepository(ApplicationDbContext dbContext)
+        public GenericRepository(ApplicationDbContext context)
         {
-            _dbContext = dbContext;
+            _context = context;
         }
 
-        #region Without Spec
-        public async Task<IReadOnlyList<T>> GetAllAsync()
+        public async Task<T> GetByIdAsync(int id)
         {
-            return await _dbContext.Set<T>().ToListAsync();
+            return await _context.Set<T>().FindAsync(id);
         }
 
-        public async Task<T> GetByIdAsync(int Id)
+        public async Task<IReadOnlyList<T>> ListAllAsync()
         {
-            return await _dbContext.Set<T>().FindAsync(Id);
-        }
-        #endregion
-
-        #region With Spec
-        public async Task<IReadOnlyList<T>> GetAllAsyncWithSpec(ISpecifications<T> Spec)
-        {
-            return await ApplySpecification(Spec).ToListAsync();
+            return await _context.Set<T>().ToListAsync();
         }
 
-        public async Task<T> GetByIdAsyncWithSpec(ISpecifications<T> Spec)
+        public async Task<IReadOnlyList<T>> ListAsync(ISpecification<T> spec)
         {
-            return await ApplySpecification(Spec).FirstOrDefaultAsync();
+            return await ApplySpecification(spec).ToListAsync();
         }
 
-        public async Task<int> GetCountWithSpecAsync(ISpecifications<T> Spec)
+        public async Task<int> CountAsync(ISpecification<T> spec)
         {
-            return await ApplySpecification(Spec).CountAsync();
+            return await ApplySpecification(spec).CountAsync();
         }
 
-        /// TEntity => just to be different, not generic T
-        public async Task<IEnumerable<TEntity>> FindAllAsync<TEntity>(Expression<Func<T, bool>> predicate, Expression<Func<T, TEntity>> selector)
+        public async Task AddAsync(T entity)
         {
-            return await _dbContext.Set<T>()
-                .Where(predicate)
-                .Select(selector)
-                .ToListAsync();
+            await _context.Set<T>().AddAsync(entity);
         }
 
-        public async Task<T> FindAsync(Expression<Func<T, bool>> match)
+        public void Update(T entity)
         {
-            return await _dbContext.Set<T>().FirstOrDefaultAsync(match);
+            _context.Set<T>().Update(entity);
+        }
+
+        public void Delete(T entity)
+        {
+            _context.Set<T>().Remove(entity);
+        }
+
+        public async Task<T> FindAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _context.Set<T>().FirstOrDefaultAsync(predicate);
         }
 
         public async Task<bool> AnyAsync(Expression<Func<T, bool>> predicate)
         {
-            return await _dbContext.Set<T>().AnyAsync(predicate);
+            return await _context.Set<T>().AnyAsync(predicate);
         }
 
-        public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
+        public async Task<IReadOnlyList<T>> GetAllPredicated(Expression<Func<T, bool>> predicate, string[] includes = null)
         {
-            return await _dbContext.Set<T>().CountAsync(predicate);
-        }
+            IQueryable<T> query = _context.Set<T>().Where(predicate);
 
-
-        public async Task<IEnumerable<T>> GetAllPredicated(Expression<Func<T, bool>> match, string[] include = null!)
-        {
-            IQueryable<T> query = _dbContext.Set<T>();
-            if (query == null) return null;
-
-            if (include != null)
+            if (includes != null)
             {
-                foreach (var incldes in include)
-                    query = query.Include(incldes);
+                foreach (var include in includes)
+                {
+                    query = query.Include(include);
+                }
             }
 
-            return await query.Where(match).ToListAsync();
+            return await query.ToListAsync();
         }
-        public T GetEntityPredicated(Expression<Func<T, bool>> match, string[] include = null!)
+
+        private IQueryable<T> ApplySpecification(ISpecification<T> spec)
         {
-            IQueryable<T> query = _dbContext.Set<T>();
-            if (query == null)
-                return null;
-            if (include != null)
-                foreach (var incldes in include)
-                    query = query.Include(incldes);
-            return query.FirstOrDefault(match);
+            return SpecificationEvaluator<T>.GetQuery(_context.Set<T>().AsQueryable(), spec);
         }
-
-
-        private IQueryable<T> ApplySpecification(ISpecifications<T> Spec)
-        {
-            return SpecificationEvaluator<T>.GetQuery(_dbContext.Set<T>(), Spec);
-        }
-        #endregion
-
-
-        #region Add
-        public async Task AddAsync(T entity)
-        {
-            await _dbContext.Set<T>().AddAsync(entity);
-        }
-        public virtual async Task AddRangeAsync(ICollection<T> entities)
-        {
-            await _dbContext.Set<T>().AddRangeAsync(entities);
-            await _dbContext.SaveChangesAsync();
-
-        }
-        #endregion
-
-        #region Update
-
-        public void Update(T entity)
-        {
-            _dbContext.Set<T>().Update(entity);
-        }
-        public virtual async Task UpdateRangeAsync(ICollection<T> entities)
-        {
-            _dbContext.Set<T>().UpdateRange(entities);
-            await _dbContext.SaveChangesAsync();
-        }
-        #endregion
-
-        #region Delete
-        public void Delete(T entity)
-        {
-            _dbContext.Set<T>().Remove(entity);
-        }
-
-        public virtual async Task DeleteRangeAsync(ICollection<T> entities)
-        {
-            foreach (var entity in entities)
-            {
-                _dbContext.Entry(entity).State = EntityState.Deleted;
-            }
-            await _dbContext.SaveChangesAsync();
-        }
-        #endregion
-
-
     }
 }

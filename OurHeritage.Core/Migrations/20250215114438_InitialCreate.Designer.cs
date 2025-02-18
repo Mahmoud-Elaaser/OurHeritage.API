@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OurHeritage.Core.Context;
 
@@ -11,9 +12,11 @@ using OurHeritage.Core.Context;
 namespace OurHeritage.Core.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250215114438_InitialCreate")]
+    partial class InitialCreate
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -253,8 +256,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasMaxLength(280)
-                        .HasColumnType("nvarchar(280)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("DateCreated")
                         .HasColumnType("datetime2");
@@ -336,10 +338,6 @@ namespace OurHeritage.Core.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ImageOrVideo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -450,12 +448,10 @@ namespace OurHeritage.Core.Migrations
 
                     b.Property<string>("FirstName")
                         .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("Gender")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Gender")
+                        .HasColumnType("int");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -587,13 +583,13 @@ namespace OurHeritage.Core.Migrations
                     b.HasOne("OurHeritage.Core.Entities.HandiCraft", null)
                         .WithMany()
                         .HasForeignKey("HandiCraftId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("OurHeritage.Core.Entities.Order", null)
                         .WithMany()
                         .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -644,7 +640,7 @@ namespace OurHeritage.Core.Migrations
                         .IsRequired();
 
                     b.HasOne("OurHeritage.Core.Entities.User", "User")
-                        .WithMany("culturalArticles")
+                        .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -784,8 +780,6 @@ namespace OurHeritage.Core.Migrations
                     b.Navigation("Likes");
 
                     b.Navigation("Orders");
-
-                    b.Navigation("culturalArticles");
                 });
 #pragma warning restore 612, 618
         }

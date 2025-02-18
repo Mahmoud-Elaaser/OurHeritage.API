@@ -1,6 +1,4 @@
-﻿using OurHeritage.Core.Enums;
-
-namespace OurHeritage.Service.DTOs.UserDto
+﻿namespace OurHeritage.Service.DTOs.UserDto
 {
     public class GetUserDto
     {
@@ -8,7 +6,7 @@ namespace OurHeritage.Service.DTOs.UserDto
         public string LastName { get; set; }
 
         public string? ProfilePicture { get; set; }
-        public Gender Gender { get; set; }
+        public string Gender { get; set; }
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
 
     }
