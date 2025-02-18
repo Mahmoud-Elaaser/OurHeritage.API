@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using OurHeritage.Core.Entities;
 using OurHeritage.Service.DTOs.AuthDto;
@@ -23,6 +24,7 @@ namespace OurHeritage.Service.Implementations
         private readonly SignInManager<User> _signInManager;
         private readonly IEmailService _emailService;
         private readonly IMemoryCache _memoryCache;
+        private readonly ILogger<AuthService> _logger;
         private static ConcurrentDictionary<string, string> OtpStorage = new ConcurrentDictionary<string, string>(); /// for otp code
 
         public AuthService(UserManager<User> userManager,
@@ -31,7 +33,8 @@ namespace OurHeritage.Service.Implementations
                            IConfiguration configuration,
                            SignInManager<User> signInManager,
                            IEmailService emailService,
-                           IMemoryCache memoryCache)
+                           IMemoryCache memoryCache,
+                           ILogger<AuthService> logger)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -40,54 +43,125 @@ namespace OurHeritage.Service.Implementations
             _signInManager = signInManager;
             _emailService = emailService;
             _memoryCache = memoryCache;
+            _logger = logger;
         }
 
         public async Task<ResponseDto> RegisterAsync(RegisterDto registerDto)
         {
-            var user = _mapper.Map<User>(registerDto);
-            var result = await _userManager.CreateAsync(user, registerDto.Password);
-            if (!result.Succeeded)
+            if (registerDto == null)
             {
                 return new ResponseDto
                 {
                     IsSucceeded = false,
-                    Message = "Something went wrong, during registeration process"
+                    Status = 400,
+                    Message = "Registration data is required."
                 };
             }
+
+            var user = _mapper.Map<User>(registerDto);
+            user.Email = user.Email.ToLower();
+            user.UserName = user.Email;
+
+            //// !! Manually hash the password
+            user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, registerDto.Password);
+
+
+            var result = await _userManager.CreateAsync(user);
+
+
+            if (!result.Succeeded)
+            {
+                var errors = result.Errors.Select(e => e.Description).ToList();
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "User registration failed.",
+                    Models = errors
+                };
+            }
+
+            await _userManager.AddToRoleAsync(user, "User");
 
             var token = await GenerateJwtTokenAsync(user);
 
             return new ResponseDto
             {
                 IsSucceeded = true,
-                Status = 200,
-                Message = "Registrtion completed successfully",
-                Model = token
+                Status = 201,
+                Message = "Registration completed successfully.",
+                Model = new { Token = token, UserId = user.Id, Email = user.Email }
             };
         }
+
 
         public async Task<ResponseDto> LoginAsync(LoginDto loginDto)
         {
-            var user = await _userManager.FindByEmailAsync(loginDto.Email);
-            var isMatching = await _userManager.CheckPasswordAsync(user, loginDto.Password);
-            if (user == null || isMatching == false)
+            if (loginDto == null || string.IsNullOrWhiteSpace(loginDto.Email) || string.IsNullOrWhiteSpace(loginDto.Password))
             {
                 return new ResponseDto
                 {
                     IsSucceeded = false,
-                    Message = "Invalid email or password"
+                    Status = 400,
+                    Message = "Email and password are required."
                 };
             }
 
+            var normalizedEmail = loginDto.Email.Trim().ToLower();
+
+            //// !! FindByNameAsync 
+            var user = await _userManager.FindByNameAsync(normalizedEmail);
+
+            if (user == null)
+            {
+                _logger.LogWarning("Login attempt failed: User not found.");
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Invalid email or password."
+                };
+            }
+
+            if (await _userManager.IsLockedOutAsync(user))
+            {
+                _logger.LogWarning($"Login attempt failed: User {user.Email} is locked out.");
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 403,
+                    Message = "Your account is locked. Try again later."
+                };
+            }
+
+            bool isPasswordValid = await _userManager.CheckPasswordAsync(user, loginDto.Password);
+            if (!isPasswordValid)
+            {
+                await _userManager.AccessFailedAsync(user);
+                _logger.LogWarning($"Login failed: Incorrect password for user {user.Email}");
+
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Invalid email or password."
+                };
+            }
+
+            // Reset failed attempts on successful login
+            await _userManager.ResetAccessFailedCountAsync(user);
+
             var token = await GenerateJwtTokenAsync(user);
+
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Status = 200,
-                Message = "Logging completed successfully",
-                Model = token
+                Message = "Login successful.",
+                Model = new { Token = token.Token, Expiry = token.Expiry, UserId = user.Id, Email = user.Email }
             };
         }
+
 
         public async Task<ResponseDto> AssignRoleAsync(RoleDto assignedRoleDto)
         {

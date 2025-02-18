@@ -1,12 +1,12 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.SignalR;
 using OurHeritage.Core.Entities;
-using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.FollowDto;
 using OurHeritage.Service.Interfaces;
 using OurHeritage.Service.SignalR;
+using System.Linq.Expressions;
 
 namespace OurHeritage.Service.Implementations
 {
@@ -96,6 +96,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetFollowersAsync(int userId)
         {
+            // Check if the user exists
             var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
             if (user == null)
             {
@@ -106,9 +107,13 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            var specParams = new SpecParams { FilterId = userId };
-            var spec = new EntitySpecification<Follow>(specParams, f => f.FollowingId == userId);
-            var followers = await _unitOfWork.Repository<Follow>().ListAsync(spec);
+            // Define the predicate to filter followers
+            Expression<Func<Follow, bool>> predicate = f => f.FollowingId == userId;
+
+            // Include the Follower navigation property to ensure it's loaded
+            string[] includes = { nameof(Follow.Follower) };
+
+            var followers = await _unitOfWork.Repository<Follow>().GetAllPredicated(predicate, includes);
 
             var followerDtos = _mapper.Map<IEnumerable<GetFollowerDto>>(followers);
 
@@ -131,15 +136,13 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            var specParams = new SpecParams { FilterId = userId };
-            var spec = new EntitySpecification<Follow>(specParams, f => f.FollowerId == userId);
-            var following = await _unitOfWork.Repository<Follow>().ListAsync(spec);
+            Expression<Func<Follow, bool>> predicate = f => f.FollowerId == userId;
 
-            var followingDtos = following.Select(f => new GetFollowerDto
-            {
-                Id = f.Following.Id,
-                Username = f.Following.UserName
-            });
+            string[] includes = { nameof(Follow.Following) };
+
+            var following = await _unitOfWork.Repository<Follow>().GetAllPredicated(predicate, includes);
+
+            var followingDtos = _mapper.Map<IEnumerable<GetFollowingDto>>(following);
 
             return new ResponseDto
             {
@@ -147,5 +150,7 @@ namespace OurHeritage.Service.Implementations
                 Models = followingDtos
             };
         }
+
+
     }
 }

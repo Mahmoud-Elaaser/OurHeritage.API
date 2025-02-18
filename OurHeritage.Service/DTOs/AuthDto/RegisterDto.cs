@@ -1,6 +1,4 @@
-﻿using OurHeritage.Core.Enums;
-using System.ComponentModel.DataAnnotations;
-using System.Text.Json.Serialization;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace OurHeritage.Service.DTOs.AuthDto
 {
@@ -31,8 +29,7 @@ namespace OurHeritage.Service.DTOs.AuthDto
         public DateTime DateOfBirth { get; set; }
 
         [Required(ErrorMessage = "Gender is required.")]
-        [JsonConverter(typeof(JsonStringEnumConverter))]
-        public Gender Gender { get; set; } = Gender.Male;
+        public string Gender { get; set; }
 
     }
 }

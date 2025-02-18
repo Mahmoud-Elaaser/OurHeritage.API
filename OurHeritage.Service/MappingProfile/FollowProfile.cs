@@ -11,8 +11,13 @@ namespace OurHeritage.Service.MappingProfile
             CreateMap<FollowDto, Follow>();
 
             CreateMap<Follow, GetFollowerDto>()
-            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Follower.Id))
-            .ForMember(dest => dest.Username, opt => opt.MapFrom(src => src.Follower.UserName));
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.FollowerId))
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Follower.Email));
+
+
+            CreateMap<Follow, GetFollowingDto>()
+            .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.FollowingId))
+            .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Following.Email));
         }
     }
 }

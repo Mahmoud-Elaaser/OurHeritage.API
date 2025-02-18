@@ -6,6 +6,7 @@ using Microsoft.OpenApi.Models;
 using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo;
+using OurHeritage.Repo.Repositories.Implementations;
 using OurHeritage.Service;
 using System.Text;
 
@@ -88,43 +89,39 @@ namespace OurHeritage.API
                 };
             });
             #endregion
+
             var app = builder.Build();
-            #region update-Database
 
 
+            #region Database Initialization & Role Seeding
 
-            // StoreContext dbContext = new StoreContext(); // Invalid
-            //await dbContext.Database.MigrateAsync();
-            using var Scope = app.Services.CreateScope();
-            //Group of Services LifeTime Scoped
-            //using is syntax suger that using to close connection instead of {Despose()}
-            var Services = Scope.ServiceProvider; //Services Its Self
-            var LoggerFactory = Services.GetRequiredService<ILoggerFactory>();
-
-            try
+            using (var scope = app.Services.CreateScope())
             {
+                var services = scope.ServiceProvider;
+                var loggerFactory = services.GetRequiredService<ILoggerFactory>();
 
-                var DbContext = Services.GetRequiredService<ApplicationDbContext>();
-                // Ask CLR For Creating Object Explicitly
-                await DbContext.Database.MigrateAsync();
+                try
+                {
+                    var dbContext = services.GetRequiredService<ApplicationDbContext>();
+                    await dbContext.Database.MigrateAsync(); // Apply pending migrations
 
-                var UserManger = Services.GetRequiredService<UserManager<User>>();
-                //await AppIdentityDbContextSeed.SeedAppUser(UserManger);
-                //await StoreContextSeed.SeedAsync(DbContext);
-            }
-            catch (Exception ex)
-            {
-                var Logger = LoggerFactory.CreateLogger<Program>();
-                Logger.LogError(ex, "An Error Occured During Appling The Migration");
+                    await RoleInitializer.InitializeAsync(services); // Seed roles if not exists
+                }
+                catch (Exception ex)
+                {
+                    var logger = loggerFactory.CreateLogger<Program>();
+                    logger.LogError(ex, "An error occurred while applying migrations.");
+                }
             }
             #endregion
 
-          
+
             app.UseSwagger();
             app.UseSwaggerUI();
 
             app.UseHttpsRedirection();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
 

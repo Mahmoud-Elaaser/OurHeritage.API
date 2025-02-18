@@ -18,10 +18,7 @@ namespace OurHeritage.Service.MappingProfile
                 .ForMember(dest => dest.DateJoined, opt => opt.MapFrom(src => DateTime.UtcNow))
                 .ReverseMap();
 
-            CreateMap<LoginDto, User>()
-                .ForMember(dest => dest.PasswordHash, opt => opt.MapFrom(src => src.Password))
-                .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Email))
-                .ReverseMap();
+            CreateMap<LoginDto, User>();
 
         }
     }
