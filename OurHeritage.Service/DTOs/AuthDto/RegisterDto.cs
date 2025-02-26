@@ -25,6 +25,8 @@ namespace OurHeritage.Service.DTOs.AuthDto
         [Display(Name = "Repeat Password")]
         public string ConfirmPassword { get; set; }
 
+        public string? UserProfilePicture { get; set; }
+
         [Required(ErrorMessage = "Date of Birth is required.")]
         public DateTime DateOfBirth { get; set; }
 

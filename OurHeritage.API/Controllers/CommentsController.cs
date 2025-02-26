@@ -25,9 +25,8 @@ namespace OurHeritage.API.Controllers
             _paginationService = paginationService;
         }
 
-        // Get all comments with pagination and filtering (Admin only)
         [HttpGet]
-       // [Authorize(Roles = "Admin")]
+        // [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetCommentDto>>> GetAllComments([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<Comment>(specParams, e =>
@@ -46,7 +45,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response);
         }
 
-        // Get a comment by ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCommentById(int id)
         {
@@ -58,7 +56,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response.Model);
         }
 
-        // Add a new comment
         [HttpPost("add")]
         public async Task<IActionResult> AddComment([FromForm] CreateOrUpdateCommentDto dto)
         {
@@ -70,7 +67,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response);
         }
 
-        // Update an existing comment
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateComment(int id, [FromForm] CreateOrUpdateCommentDto dto)
         {
@@ -82,7 +78,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response.Message);
         }
 
-        // Delete a comment
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
         {
@@ -94,7 +89,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response.Message);
         }
 
-        // Get all comments on a cultural article with pagination
         [HttpGet("article/{culturalArticleId}")]
         public async Task<ActionResult<PaginationResponse<GetCommentDto>>> GetAllCommentsOnCulturalArticle(int culturalArticleId, [FromQuery] SpecParams specParams)
         {

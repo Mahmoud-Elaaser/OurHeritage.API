@@ -1,101 +1,79 @@
-﻿using AutoMapper;
+﻿using Microsoft.EntityFrameworkCore;
+using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
-using OurHeritage.Repo.Repositories.Interfaces;
-using OurHeritage.Service.DTOs;
-using OurHeritage.Service.DTOs.FavoriteDto;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.Service.Implementations
 {
     public class FavoriteService : IFavoriteService
     {
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly IMapper _mapper;
+        private readonly ApplicationDbContext _context;
 
-        public FavoriteService(IUnitOfWork unitOfWork, IMapper mapper)
+        public FavoriteService(ApplicationDbContext context)
         {
-            _unitOfWork = unitOfWork;
-            _mapper = mapper;
+            _context = context;
         }
 
-        public async Task<ResponseDto> AddToFavoriteAsync(AddToFavoriteDto dto)
+        public async Task<List<Favorite>> GetAllFavoritesAsync()
         {
-            if (dto == null)
+            return await _context.Favorites
+                .Include(f => f.User)
+                .Include(f => f.HandiCraft)
+                .ToListAsync();
+        }
+
+        public async Task<List<Favorite>> GetFavoritesByUserIdAsync(int userId)
+        {
+            return await _context.Favorites
+                .Where(f => f.UserId == userId)
+                .Include(f => f.HandiCraft)
+                .ToListAsync();
+        }
+
+        public async Task<Favorite> GetFavoriteByIdAsync(int id)
+        {
+            return await _context.Favorites
+                .Include(f => f.User)
+                .Include(f => f.HandiCraft)
+                .FirstOrDefaultAsync(f => f.Id == id);
+        }
+
+        public async Task<Favorite> GetFavoriteByUserAndHandiCraftAsync(int userId, int handiCraftId)
+        {
+            return await _context.Favorites
+                .FirstOrDefaultAsync(f => f.UserId == userId && f.HandiCraftId == handiCraftId);
+        }
+
+        public async Task<Favorite> AddFavoriteAsync(Favorite favorite)
+        {
+            var existingFavorite = await GetFavoriteByUserAndHandiCraftAsync(favorite.UserId, favorite.HandiCraftId);
+            if (existingFavorite != null)
             {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 400,
-                    Message = "Model doesn't exist"
-                };
+                return existingFavorite;
             }
-            var favorite = _mapper.Map<Favorite>(dto);
-            await _unitOfWork.Repository<Favorite>().AddAsync(favorite);
-            await _unitOfWork.CompleteAsync();
-            return new ResponseDto
-            {
-                IsSucceeded = true,
-                Status = 201,
-                Model = dto,
-                Message = "Favorite created successfully"
-            };
+
+            _context.Favorites.Add(favorite);
+            await _context.SaveChangesAsync();
+            return favorite;
         }
 
-        public async Task<ResponseDto> GetFavoriteByIdAsync(int favoriteId)
+        public async Task<bool> RemoveFavoriteAsync(int id)
         {
-            var favorite = await _unitOfWork.Repository<Favorite>().GetByIdAsync(favoriteId);
+            var favorite = await _context.Favorites.FindAsync(id);
             if (favorite == null)
             {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 404,
-                    Message = "Favorite not found"
-                };
+                return false;
             }
-            var favoriteDto = _mapper.Map<GetFavoriteDto>(favorite);
-            return new ResponseDto
-            {
-                IsSucceeded = true,
-                Status = 200,
-                Model = favoriteDto
-            };
+
+            _context.Favorites.Remove(favorite);
+            await _context.SaveChangesAsync();
+            return true;
         }
 
-        public async Task<ResponseDto> GetAllFavoritesAsync()
+        public async Task<bool> IsFavoriteAsync(int userId, int handiCraftId)
         {
-            var favorites = await _unitOfWork.Repository<Favorite>().ListAllAsync();
-
-            var mappedFavorites = _mapper.Map<IEnumerable<GetFavoriteDto>>(favorites);
-
-            return new ResponseDto
-            {
-                IsSucceeded = true,
-                Status = 200,
-                Models = mappedFavorites
-            };
-        }
-
-        public async Task<ResponseDto> DeleteFavoriteAsync(int favoriteId)
-        {
-            var favorite = await _unitOfWork.Repository<Favorite>().GetByIdAsync(favoriteId);
-            if (favorite == null)
-            {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 404,
-                    Message = "Favorite not found"
-                };
-            }
-            _unitOfWork.Repository<Favorite>().Delete(favorite);
-            await _unitOfWork.CompleteAsync();
-            return new ResponseDto
-            {
-                IsSucceeded = true,
-                Status = 200,
-                Message = "Favorite deleted successfully"
-            };
+            return await _context.Favorites
+                .AnyAsync(f => f.UserId == userId && f.HandiCraftId == handiCraftId);
         }
     }
 }

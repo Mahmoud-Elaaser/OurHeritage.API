@@ -1,5 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
@@ -24,9 +23,8 @@ namespace OurHeritage.API.Controllers
             _paginationService = paginationService;
         }
 
-        // Get all categories with pagination and filtering (Admin only)
         [HttpGet]
-     //   [Authorize(Roles = "Admin")]
+        //   [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetCategoryDto>>> GetAllCategories([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<Category>(specParams, e =>
@@ -44,7 +42,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response);
         }
 
-        // Get a category by ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCategoryById(int id)
         {
@@ -56,7 +53,6 @@ namespace OurHeritage.API.Controllers
             return Ok(category.Model);
         }
 
-        // Create a new category
         [HttpPost("create")]
         public async Task<IActionResult> CreateCategory([FromForm] CreateOrUpdateCategoryDto createCategoryDto)
         {
@@ -67,7 +63,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response.Message);
         }
 
-        // Update an existing category
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateCategory(int id, [FromForm] CreateOrUpdateCategoryDto updateCategoryDto)
         {
@@ -79,9 +74,8 @@ namespace OurHeritage.API.Controllers
             return Ok(category.Message);
         }
 
-        // Delete a category (Admin only)
         [HttpDelete("{id}")]
-   //     [Authorize(Roles = "Admin")]
+        //     [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
             var category = await _categoryService.DeleteCategoryAsync(id);

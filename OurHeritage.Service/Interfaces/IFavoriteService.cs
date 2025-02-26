@@ -1,14 +1,16 @@
-﻿using OurHeritage.Service.DTOs;
-using OurHeritage.Service.DTOs.FavoriteDto;
+﻿using OurHeritage.Core.Entities;
 
 namespace OurHeritage.Service.Interfaces
 {
     public interface IFavoriteService
     {
-        Task<ResponseDto> AddToFavoriteAsync(AddToFavoriteDto dto);
-        Task<ResponseDto> GetFavoriteByIdAsync(int FavoriteId);
-        Task<ResponseDto> GetAllFavoritesAsync();
-        Task<ResponseDto> DeleteFavoriteAsync(int FavoriteId);
+        Task<List<Favorite>> GetAllFavoritesAsync();
+        Task<List<Favorite>> GetFavoritesByUserIdAsync(int userId);
+        Task<Favorite> GetFavoriteByIdAsync(int id);
+        Task<Favorite> GetFavoriteByUserAndHandiCraftAsync(int userId, int handiCraftId);
+        Task<Favorite> AddFavoriteAsync(Favorite favorite);
+        Task<bool> RemoveFavoriteAsync(int id);
+        Task<bool> IsFavoriteAsync(int userId, int handiCraftId);
 
     }
 }

@@ -25,27 +25,35 @@ namespace OurHeritage.API.Controllers
             _paginationService = paginationService;
         }
 
-        // Get all handicrafts with pagination and filtering (Admin only)
         [HttpGet]
-     //   [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetHandiCraftDto>>> GetAllHandiCrafts([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<HandiCraft>(specParams, e =>
-                (string.IsNullOrEmpty(specParams.Search) || e.Title.ToLower().Contains(specParams.Search.ToLower())));
+                string.IsNullOrEmpty(specParams.Search) || e.Title.ToLower().Contains(specParams.Search.ToLower()));
 
-            var entities = await _unitOfWork.Repository<HandiCraft>().ListAsync(spec);
-            var response = _paginationService.Paginate<HandiCraft, GetHandiCraftDto>(entities, specParams, e => new GetHandiCraftDto
+            // Include User entity to fetch creator details
+            var entities = await _unitOfWork.Repository<HandiCraft>()
+                .GetAllPredicated(spec.Criteria, new[] { "User" });
+
+
+            var response = _paginationService.Paginate(entities, specParams, e => new GetHandiCraftDto
             {
                 Id = e.Id,
                 Title = e.Title,
-
-                Description = e.Description
+                CategoryId = e.CategoryId,
+                ImageOrVideo = e.ImageOrVideo,
+                Price = e.Price,
+                UserId = e.UserId,
+                Description = e.Description,
+                NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
+                UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg"
             });
+
 
             return Ok(response);
         }
 
-        // Get a handicraft by ID
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetHandiCraftById(int id)
         {
@@ -57,7 +65,6 @@ namespace OurHeritage.API.Controllers
             return Ok(handiCraft.Model);
         }
 
-        // Create a new handicraft
         [HttpPost("create")]
         public async Task<IActionResult> CreateHandiCraft([FromForm] CreateOrUpdateHandiCraftDto createHandiCraftDto)
         {
@@ -68,7 +75,6 @@ namespace OurHeritage.API.Controllers
             return Ok(response.Message);
         }
 
-        // Update an existing handicraft
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateHandiCraft(int id, [FromForm] CreateOrUpdateHandiCraftDto updateHandiCraftDto)
         {
@@ -80,9 +86,7 @@ namespace OurHeritage.API.Controllers
             return Ok(handiCraft.Message);
         }
 
-        // Delete a handicraft (Admin only)
         [HttpDelete("{id}")]
-    //    [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteHandiCraft(int id)
         {
             var handiCraft = await _handiCraftService.DeleteHandiCraftAsync(id);

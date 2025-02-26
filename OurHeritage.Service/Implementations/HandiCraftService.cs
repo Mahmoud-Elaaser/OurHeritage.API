@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
@@ -49,7 +48,7 @@ namespace OurHeritage.Service.Implementations
 
                 }
             }
-                var HandiCraft = _mapper.Map<HandiCraft>(dto);
+            var HandiCraft = _mapper.Map<HandiCraft>(dto);
             await _unitOfWork.Repository<HandiCraft>().AddAsync(HandiCraft);
             await _unitOfWork.CompleteAsync();
             return new ResponseDto
@@ -63,8 +62,10 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetHandiCraftByIdAsync(int HandiCraftId)
         {
-            var HandiCraft = await _unitOfWork.Repository<HandiCraft>().GetByIdAsync(HandiCraftId);
-            if (HandiCraft == null)
+            var HandiCraft = await _unitOfWork.Repository<HandiCraft>()
+                .GetAllPredicated(e => e.Id == HandiCraftId, new[] { "User" });
+
+            if (HandiCraft == null || !HandiCraft.Any())
             {
                 return new ResponseDto
                 {
@@ -73,7 +74,22 @@ namespace OurHeritage.Service.Implementations
                     Message = "HandiCraft not found"
                 };
             }
-            var HandiCraftDto = _mapper.Map<GetHandiCraftDto>(HandiCraft);
+
+            var handiCraftEntity = HandiCraft.First();
+
+            var HandiCraftDto = _mapper.Map<GetHandiCraftDto>(handiCraftEntity);
+
+            // Convert List<string> to a List<string> in DTO
+            HandiCraftDto.ImageOrVideo = handiCraftEntity.ImageOrVideo ?? new List<string>();
+
+            // Assign user details
+            HandiCraftDto.NameOfUser = handiCraftEntity.User != null
+                ? $"{handiCraftEntity.User.FirstName} {handiCraftEntity.User.LastName}"
+                : "Unknown User";
+
+            // Assign profile picture
+            HandiCraftDto.UserProfilePicture = handiCraftEntity.User?.ProfilePicture ?? "default.jpg";
+
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -82,11 +98,30 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
+
+
+
+
         public async Task<ResponseDto> GetAllHandiCraftsAsync()
         {
-            var HandiCrafts = await _unitOfWork.Repository<HandiCraft>().ListAllAsync();
+            var HandiCrafts = await _unitOfWork.Repository<HandiCraft>()
+                .GetAllPredicated(h => true, new[] { "User" });
 
             var mappedHandiCrafts = _mapper.Map<IEnumerable<GetHandiCraftDto>>(HandiCrafts);
+
+            // Set NameOfUser for each item
+            foreach (var dto in mappedHandiCrafts)
+            {
+                var correspondingHandiCraft = HandiCrafts.FirstOrDefault(h => h.Id == dto.Id);
+                if (correspondingHandiCraft != null && correspondingHandiCraft.User != null)
+                {
+                    dto.NameOfUser = $"{correspondingHandiCraft.User.FirstName} {correspondingHandiCraft.User.LastName}";
+                }
+                else
+                {
+                    dto.NameOfUser = "Unknown User";
+                }
+            }
 
             return new ResponseDto
             {
@@ -95,6 +130,7 @@ namespace OurHeritage.Service.Implementations
                 Models = mappedHandiCrafts
             };
         }
+
 
 
         public async Task<ResponseDto> UpdateHandiCraftAsync(int HandiCraftId, CreateOrUpdateHandiCraftDto dto)
