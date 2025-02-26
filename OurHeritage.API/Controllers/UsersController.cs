@@ -5,6 +5,7 @@ using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs.UserDto;
+using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.API.Controllers
@@ -62,9 +63,12 @@ namespace OurHeritage.API.Controllers
         [HttpPut("{id}")]
         [ProducesResponseType(typeof(CreateOrUpdateUserDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] CreateOrUpdateUserDto dto)
+        public async Task<IActionResult> UpdateUser(int id, [FromForm] CreateOrUpdateUserDto dto)
         {
-            var response = await _userService.UpdateUserAsync(id, dto);
+
+
+
+                var response = await _userService.UpdateUserAsync(id, dto);
             if (!response.IsSucceeded)
             {
                 return BadRequest(new ApiResponse(response.Status, response.Message));
@@ -78,6 +82,8 @@ namespace OurHeritage.API.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
+        
+
             var response = await _userService.DeleteUserAsync(id);
             if (!response.IsSucceeded)
             {

@@ -87,7 +87,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateArticle([FromBody] CreateOrUpdateCulturalArticleDto createDto)
+        public async Task<IActionResult> CreateArticle([FromForm] CreateOrUpdateCulturalArticleDto createDto)
         {
             var response = await _culturalArticleService.AddCulturalArticleAsync(createDto);
             if (!response.IsSucceeded)
@@ -98,7 +98,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateArticle(int id, [FromBody] CreateOrUpdateCulturalArticleDto updateDto)
+        public async Task<IActionResult> UpdateArticle(int id, [FromForm] CreateOrUpdateCulturalArticleDto updateDto)
         {
             var response = await _culturalArticleService.UpdateCulturalArticleAsync(id, updateDto);
             if (!response.IsSucceeded)

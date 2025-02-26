@@ -60,7 +60,7 @@ namespace OurHeritage.API.Controllers
 
         // Add a new comment
         [HttpPost("add")]
-        public async Task<IActionResult> AddComment([FromBody] CreateOrUpdateCommentDto dto)
+        public async Task<IActionResult> AddComment([FromForm] CreateOrUpdateCommentDto dto)
         {
             var response = await _commentService.AddCommentAsync(dto);
             if (!response.IsSucceeded)
@@ -72,7 +72,7 @@ namespace OurHeritage.API.Controllers
 
         // Update an existing comment
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateComment(int id, [FromBody] CreateOrUpdateCommentDto dto)
+        public async Task<IActionResult> UpdateComment(int id, [FromForm] CreateOrUpdateCommentDto dto)
         {
             var response = await _commentService.UpdateCommentAsync(id, dto);
             if (!response.IsSucceeded)

@@ -31,13 +31,14 @@ namespace OurHeritage.API.Controllers
         public async Task<ActionResult<PaginationResponse<GetHandiCraftDto>>> GetAllHandiCrafts([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<HandiCraft>(specParams, e =>
-                (string.IsNullOrEmpty(specParams.Search) || e.Name.ToLower().Contains(specParams.Search.ToLower())));
+                (string.IsNullOrEmpty(specParams.Search) || e.Title.ToLower().Contains(specParams.Search.ToLower())));
 
             var entities = await _unitOfWork.Repository<HandiCraft>().ListAsync(spec);
             var response = _paginationService.Paginate<HandiCraft, GetHandiCraftDto>(entities, specParams, e => new GetHandiCraftDto
             {
                 Id = e.Id,
-                Name = e.Name,
+                Title = e.Title,
+
                 Description = e.Description
             });
 
@@ -58,7 +59,7 @@ namespace OurHeritage.API.Controllers
 
         // Create a new handicraft
         [HttpPost("create")]
-        public async Task<IActionResult> CreateHandiCraft([FromBody] CreateOrUpdateHandiCraftDto createHandiCraftDto)
+        public async Task<IActionResult> CreateHandiCraft([FromForm] CreateOrUpdateHandiCraftDto createHandiCraftDto)
         {
             var response = await _handiCraftService.CreateHandiCraftAsync(createHandiCraftDto);
             if (!response.IsSucceeded)
@@ -69,7 +70,7 @@ namespace OurHeritage.API.Controllers
 
         // Update an existing handicraft
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateHandiCraft(int id, [FromBody] CreateOrUpdateHandiCraftDto updateHandiCraftDto)
+        public async Task<IActionResult> UpdateHandiCraft(int id, [FromForm] CreateOrUpdateHandiCraftDto updateHandiCraftDto)
         {
             var handiCraft = await _handiCraftService.UpdateHandiCraftAsync(id, updateHandiCraftDto);
             if (!handiCraft.IsSucceeded)

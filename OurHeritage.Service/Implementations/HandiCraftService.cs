@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.HandiCraftDto;
+using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.Service.Implementations
@@ -29,7 +31,25 @@ namespace OurHeritage.Service.Implementations
                     Message = "Model doesn't exist"
                 };
             }
-            var HandiCraft = _mapper.Map<HandiCraft>(dto);
+            foreach (var image in dto.Images)
+            {
+                var uploadedFiles = FilesSetting.UploadFile(image, "HandiCraft");
+                if (uploadedFiles != null && uploadedFiles.Any())
+                {
+                    dto.ImageOrVideo.Add(uploadedFiles);
+                }
+                else
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 401,
+                        Message = "Please upload a valid file."
+                    };
+
+                }
+            }
+                var HandiCraft = _mapper.Map<HandiCraft>(dto);
             await _unitOfWork.Repository<HandiCraft>().AddAsync(HandiCraft);
             await _unitOfWork.CompleteAsync();
             return new ResponseDto
@@ -79,6 +99,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> UpdateHandiCraftAsync(int HandiCraftId, CreateOrUpdateHandiCraftDto dto)
         {
+
             var HandiCraft = await _unitOfWork.Repository<HandiCraft>().GetByIdAsync(HandiCraftId);
             if (HandiCraft == null)
             {
@@ -88,6 +109,32 @@ namespace OurHeritage.Service.Implementations
                     Status = 404,
                     Message = "HandiCraft not found"
                 };
+            }
+            if (dto.Images != null)
+            {
+                foreach (var imageUrl in dto.ImageOrVideo)
+                {
+                    FilesSetting.DeleteFile(imageUrl, "CulturalArticle");
+
+                }
+            }
+            foreach (var image in dto.Images)
+            {
+                var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
+                if (uploadedFiles != null && uploadedFiles.Any())
+                {
+                    dto.ImageOrVideo.Add(uploadedFiles);
+                }
+                else
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 401,
+                        Message = "Please upload a valid file."
+                    };
+
+                }
             }
             _mapper.Map(dto, HandiCraft);
             _unitOfWork.Repository<HandiCraft>().Update(HandiCraft);

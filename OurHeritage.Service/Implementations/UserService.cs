@@ -3,6 +3,7 @@ using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.UserDto;
+using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.Service.Implementations
@@ -88,6 +89,7 @@ namespace OurHeritage.Service.Implementations
                     Message = "User not found"
                 };
             }
+            if (dto.Images != null) { dto.ProfilePicture = FilesSetting.UploadFile(dto.Images, "ProfilePicture"); }
             _mapper.Map(dto, user);
             _unitOfWork.Repository<User>().Update(user);
             await _unitOfWork.CompleteAsync();
@@ -111,6 +113,8 @@ namespace OurHeritage.Service.Implementations
                     Message = "User not found"
                 };
             }
+          FilesSetting.DeleteFile(user.ProfilePicture, "ProfilePicture"); 
+          FilesSetting.DeleteFile(user.CoverProfilePicture, "ProfilePicture"); 
             _unitOfWork.Repository<User>().Delete(user);
             await _unitOfWork.CompleteAsync();
             return new ResponseDto

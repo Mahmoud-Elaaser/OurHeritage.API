@@ -58,7 +58,7 @@ namespace OurHeritage.API.Controllers
 
         // Create a new category
         [HttpPost("create")]
-        public async Task<IActionResult> CreateCategory([FromBody] CreateOrUpdateCategoryDto createCategoryDto)
+        public async Task<IActionResult> CreateCategory([FromForm] CreateOrUpdateCategoryDto createCategoryDto)
         {
             var response = await _categoryService.CreateCategoryAsync(createCategoryDto);
             if (!response.IsSucceeded)
@@ -69,7 +69,7 @@ namespace OurHeritage.API.Controllers
 
         // Update an existing category
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateCategory(int id, [FromBody] CreateOrUpdateCategoryDto updateCategoryDto)
+        public async Task<IActionResult> UpdateCategory(int id, [FromForm] CreateOrUpdateCategoryDto updateCategoryDto)
         {
             var category = await _categoryService.UpdateCategoryAsync(id, updateCategoryDto);
             if (!category.IsSucceeded)

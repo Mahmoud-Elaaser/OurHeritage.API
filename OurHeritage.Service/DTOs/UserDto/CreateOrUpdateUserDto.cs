@@ -1,4 +1,5 @@
-﻿using OurHeritage.Core.Enums;
+﻿using Microsoft.AspNetCore.Http;
+using OurHeritage.Core.Enums;
 
 namespace OurHeritage.Service.DTOs.UserDto
 {
@@ -6,6 +7,7 @@ namespace OurHeritage.Service.DTOs.UserDto
     {
         public string FirstName { get; set; }
         public string LastName { get; set; }
+        public IFormFile? Images { get; set; }
         public string? ProfilePicture { get; set; }
         public Gender Gender { get; set; }
     }

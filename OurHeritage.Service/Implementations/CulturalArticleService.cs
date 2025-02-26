@@ -1,10 +1,13 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Http;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.CulturalArticleDto;
+using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace OurHeritage.Service.Implementations
@@ -153,7 +156,25 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> AddCulturalArticleAsync(CreateOrUpdateCulturalArticleDto createCulturalArticleDto)
         {
-            var culturalArticle = _mapper.Map<CulturalArticle>(createCulturalArticleDto);
+            foreach (var image in createCulturalArticleDto.Images)
+            {
+                var uploadedFiles = FilesSetting.UploadFile(image ,"CulturalArticle");
+                if (uploadedFiles != null && uploadedFiles.Any())
+                {
+                    createCulturalArticleDto.ImageURL.Add(uploadedFiles);
+                }
+                else
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 401,
+                        Message = "Please upload a valid file."
+                    };
+
+                }
+            }
+                var culturalArticle = _mapper.Map<CulturalArticle>(createCulturalArticleDto);
             await _unitOfWork.Repository<CulturalArticle>().AddAsync(culturalArticle);
             await _unitOfWork.CompleteAsync();
 
@@ -169,8 +190,10 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> UpdateCulturalArticleAsync(int id, CreateOrUpdateCulturalArticleDto updateCulturalArticleDto)
         {
+
             var existingCulturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
-            if (existingCulturalArticle == null)
+           
+             if (existingCulturalArticle == null)
             {
                 return new ResponseDto
                 {
@@ -179,8 +202,33 @@ namespace OurHeritage.Service.Implementations
                     Message = "CulturalArticle not found"
                 };
             }
+            if (updateCulturalArticleDto.Images != null)
+            {
+                foreach (var imageUrl in existingCulturalArticle.ImageURL)
+                {
+                    FilesSetting.DeleteFile(imageUrl, "CulturalArticle");
 
-            _mapper.Map(updateCulturalArticleDto, existingCulturalArticle);
+                }
+            }
+            foreach (var image in updateCulturalArticleDto.Images)
+            {
+                var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
+                if (uploadedFiles != null && uploadedFiles.Any())
+                {
+                    updateCulturalArticleDto.ImageURL.Add(uploadedFiles);
+                }
+                else
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 401,
+                        Message = "Please upload a valid file."
+                    };
+
+                }
+            }
+                _mapper.Map(updateCulturalArticleDto, existingCulturalArticle);
             _unitOfWork.Repository<CulturalArticle>().Update(existingCulturalArticle);
             await _unitOfWork.CompleteAsync();
 

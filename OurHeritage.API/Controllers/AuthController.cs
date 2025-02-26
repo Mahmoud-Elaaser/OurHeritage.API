@@ -18,7 +18,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> RegisterUser([FromBody] RegisterDto model)
+        public async Task<IActionResult> RegisterUser([FromForm] RegisterDto model)
         {
             var result = await _authService.RegisterAsync(model);
             if (result == null)
@@ -29,7 +29,7 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginDto model)
+        public async Task<IActionResult> Login([FromForm] LoginDto model)
         {
             var result = await _authService.LoginAsync(model);
             if (result == null)
@@ -48,7 +48,7 @@ namespace OurHeritage.API.Controllers
 
         [HttpPost("assign-role")]
         //[Authorize(Roles = "Admin")]
-        public async Task<IActionResult> AssignRole([FromBody] RoleDto model)
+        public async Task<IActionResult> AssignRole([FromForm] RoleDto model)
         {
             var result = await _authService.AssignRoleAsync(model);
             if (!result.IsSucceeded)
@@ -59,7 +59,7 @@ namespace OurHeritage.API.Controllers
 
         [HttpPost("remove-role")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RemoveRole([FromBody] RoleDto model)
+        public async Task<IActionResult> RemoveRole([FromForm] RoleDto model)
         {
             var result = await _authService.RemoveRoleAsync(model);
             if (!result.IsSucceeded)
@@ -70,7 +70,7 @@ namespace OurHeritage.API.Controllers
 
         [HttpPost("update-role")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> UpdateRole([FromBody] RoleDto model)
+        public async Task<IActionResult> UpdateRole([FromForm] RoleDto model)
         {
             var result = await _authService.UpdateRoleAsync(model);
             if (!result.IsSucceeded)
@@ -80,7 +80,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost("change-password")]
-        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto model)
+        public async Task<IActionResult> ChangePassword([FromForm] ChangePasswordDto model)
         {
             var result = await _authService.ChangePasswordAsync(model);
             if (!result.IsSucceeded)
@@ -91,7 +91,7 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto dto)
+        public async Task<IActionResult> ForgotPassword([FromForm] ForgotPasswordDto dto)
         {
             var response = await _authService.ForegotPassword(dto);
             if (!response.IsSucceeded)
@@ -100,7 +100,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        public async Task<IActionResult> ResetPassword([FromForm] ResetPasswordDto dto)
         {
             var response = await _authService.ResetPassword(dto);
             if (!response.IsSucceeded)
@@ -110,7 +110,7 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("resend-otp")]
-        public async Task<IActionResult> ResendOTPCode([FromBody] SendOTPRequest sendOTPRequest)
+        public async Task<IActionResult> ResendOTPCode([FromForm] SendOTPRequest sendOTPRequest)
         {
             bool sent = await _authService.ResendOtpCode(sendOTPRequest);
             if (!sent)
