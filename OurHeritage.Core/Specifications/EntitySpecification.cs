@@ -15,7 +15,7 @@ namespace OurHeritage.Core.Specifications
     {
         public int PageIndex { get; set; } = 1;
         public int PageSize { get; set; } = 10;
-        public string Search { get; set; }
+        public string? Search { get; set; }
         public int? FilterId { get; set; }
     }
 }

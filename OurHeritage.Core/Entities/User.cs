@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using OurHeritage.Core.Enums;
 
 namespace OurHeritage.Core.Entities
 {
@@ -12,8 +13,8 @@ namespace OurHeritage.Core.Entities
         public DateTime DateJoined { get; set; } = DateTime.UtcNow;
         public string Email { get; set; }
         public string? Phone { get; set; }
-        public string? Skills { get; set; }
-        public string? Connections { get; set; }
+        public List<string>? Skills { get; set; }
+        public List<string>? Connections { get; set; }
 
 
         public ICollection<HandiCraft>? HandiCrafts { get; set; }

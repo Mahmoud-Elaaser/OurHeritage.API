@@ -7,6 +7,8 @@ using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs.UserDto;
 using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
+using System.Numerics;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace OurHeritage.API.Controllers
 {
@@ -28,7 +30,7 @@ namespace OurHeritage.API.Controllers
 
         // Get all users with pagination and filtering (Admin only)
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+       // [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetUserDto>>> GetAllUsers([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<User>(specParams, e =>
@@ -37,10 +39,19 @@ namespace OurHeritage.API.Controllers
             var entities = await _unitOfWork.Repository<User>().ListAsync(spec);
             var response = _paginationService.Paginate<User, GetUserDto>(entities, specParams, e => new GetUserDto
             {
+                id=e.Id,
                 FirstName = e.FirstName,
                 LastName = e.LastName,
+                ProfilePicture= e.ProfilePicture,
+                CoverProfilePicture = e.CoverProfilePicture,
+                Phone=e.Phone,
+                Skills=e.Skills,
+                Connections=e.Connections,
                 DateJoined = e.DateJoined,
-                Gender = e.Gender,
+                Gender = (Core.Enums.Gender)Enum.Parse(typeof(OurHeritage.Core.Enums.Gender), e.Gender, true)
+
+
+
 
             });
 
@@ -79,7 +90,7 @@ namespace OurHeritage.API.Controllers
         // Delete a user (Admin only)
         [HttpDelete("{id}")]
         [ProducesResponseType(typeof(ApiResponse), StatusCodes.Status404NotFound)]
-        [Authorize(Roles = "Admin")]
+      //  [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
         

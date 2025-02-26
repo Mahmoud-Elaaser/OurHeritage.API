@@ -89,7 +89,8 @@ namespace OurHeritage.Service.Implementations
                     Message = "User not found"
                 };
             }
-            if (dto.Images != null) { dto.ProfilePicture = FilesSetting.UploadFile(dto.Images, "ProfilePicture"); }
+            if (dto.ImageProfile != null) { dto.ProfilePicture = FilesSetting.UploadFile(dto.ImageProfile, "ProfilePicture"); }
+            if (dto.ImageCoverProfile != null) { dto.CoverProfilePicture = FilesSetting.UploadFile(dto.ImageCoverProfile, "ProfilePicture"); }
             _mapper.Map(dto, user);
             _unitOfWork.Repository<User>().Update(user);
             await _unitOfWork.CompleteAsync();

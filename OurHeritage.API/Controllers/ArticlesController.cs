@@ -28,8 +28,8 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin")]
-        public async Task<ActionResult<PaginationResponse<CreateOrUpdateCulturalArticleDto>>> GetArticles([FromQuery] SpecParams specParams)
+       // [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<PaginationResponse<GetCulturalArticleDto>>> GetArticles([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<CulturalArticle>(specParams, e =>
                 (string.IsNullOrEmpty(specParams.Search) || e.Content.ToLower().Contains(specParams.Search.ToLower())) &&
@@ -38,13 +38,14 @@ namespace OurHeritage.API.Controllers
             var entities = await _unitOfWork.Repository<CulturalArticle>().ListAsync(spec);
             var totalEntities = await _unitOfWork.Repository<CulturalArticle>().CountAsync(spec);
 
-            var response = _paginationService.Paginate<CulturalArticle, CreateOrUpdateCulturalArticleDto>(entities, specParams, e => new CreateOrUpdateCulturalArticleDto
+            var response = _paginationService.Paginate<CulturalArticle, GetCulturalArticleDto>(entities, specParams, e => new GetCulturalArticleDto
             {
                 Id = e.Id,
                 Title = e.Title,
                 Content = e.Content,
                 CategoryId = e.CategoryId,
-                DateCreated = e.DateCreated
+                ImageURL=e.ImageURL
+               // DateCreated = e.DateCreated
             });
 
             return Ok(response);

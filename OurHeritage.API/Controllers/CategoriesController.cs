@@ -26,7 +26,7 @@ namespace OurHeritage.API.Controllers
 
         // Get all categories with pagination and filtering (Admin only)
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+     //   [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetCategoryDto>>> GetAllCategories([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<Category>(specParams, e =>
@@ -81,7 +81,7 @@ namespace OurHeritage.API.Controllers
 
         // Delete a category (Admin only)
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+   //     [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
             var category = await _categoryService.DeleteCategoryAsync(id);

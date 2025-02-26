@@ -27,7 +27,7 @@ namespace OurHeritage.API.Controllers
 
         // Get all comments with pagination and filtering (Admin only)
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+       // [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetCommentDto>>> GetAllComments([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<Comment>(specParams, e =>

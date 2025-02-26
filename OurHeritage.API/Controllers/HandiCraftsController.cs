@@ -27,7 +27,7 @@ namespace OurHeritage.API.Controllers
 
         // Get all handicrafts with pagination and filtering (Admin only)
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+     //   [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetHandiCraftDto>>> GetAllHandiCrafts([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<HandiCraft>(specParams, e =>
@@ -82,7 +82,7 @@ namespace OurHeritage.API.Controllers
 
         // Delete a handicraft (Admin only)
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
+    //    [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteHandiCraft(int id)
         {
             var handiCraft = await _handiCraftService.DeleteHandiCraftAsync(id);

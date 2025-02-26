@@ -31,7 +31,7 @@ namespace OurHeritage.Service.Helper
             file.CopyTo(Fs);
 
             // 6. Return File Name
-            return FileName;
+            return FilePath;
         }
 
 
