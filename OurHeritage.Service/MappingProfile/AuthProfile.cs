@@ -16,7 +16,7 @@ namespace OurHeritage.Service.MappingProfile
                 .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.LastName))
                 .ForMember(dest => dest.Gender, opt => opt.MapFrom(src => src.Gender))
                 .ForMember(dest => dest.DateJoined, opt => opt.MapFrom(src => DateTime.UtcNow))
-                .ForMember(dest => dest.ProfilePicture, opt => opt.MapFrom(src => src.UserProfilePicture))
+              //  .ForMember(dest => dest.ProfilePicture, opt => opt.MapFrom(src => src.UserProfilePicture))
                 .ReverseMap();
 
             CreateMap<LoginDto, User>();

@@ -97,9 +97,19 @@ namespace OurHeritage.API
                 };
             });
             #endregion
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAllOrigins",
+                    builder =>
+                    {
+                        builder.AllowAnyOrigin()
+                               .AllowAnyMethod()
+                               .AllowAnyHeader();
+                    });
+            });
 
             var app = builder.Build();
-
+       
 
             #region Database Initialization & Role Seeding
 
@@ -122,7 +132,7 @@ namespace OurHeritage.API
                 }
             }
             #endregion
-
+            app.UseCors("AllowAllOrigins");
             app.UseStaticFiles();
             app.UseSwagger();
             app.UseSwaggerUI();

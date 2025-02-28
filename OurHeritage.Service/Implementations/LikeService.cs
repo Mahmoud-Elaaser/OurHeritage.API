@@ -25,9 +25,7 @@ namespace OurHeritage.Service.Implementations
             _hubContext = hubContext;
         }
 
-        /// <summary>
-        /// Get a list of users who liked a specific article
-        /// </summary>
+
         public async Task<IEnumerable<GetUserDto>> GetUsersWhoLikedArticleAsync(int culturalArticleId)
         {
             var likes = await _unitOfWork.Repository<Like>()
@@ -36,24 +34,38 @@ namespace OurHeritage.Service.Implementations
             var userIds = likes.Select(l => l.UserId).Distinct();
 
             var users = await _unitOfWork.Repository<User>()
-                .GetAllPredicated(u => userIds.Contains(u.Id), new[] { "User" });
-            return _mapper.Map<IEnumerable<GetUserDto>>(users);
+                .GetAllPredicated(u => userIds.Contains(u.Id), null);
+
+            var mappedUsers = _mapper.Map<IEnumerable<GetUserDto>>(users);
+
+
+            foreach (var userDto in mappedUsers)
+            {
+                var user = users.FirstOrDefault(u => u.Id == userDto.Id);
+                if (user != null)
+                {
+                    userDto.FullName = $"{user.FirstName} {user.LastName}";
+
+                    if (string.IsNullOrEmpty(userDto.ProfilePicture))
+                    {
+                        userDto.ProfilePicture = "default.jpg";
+                    }
+                }
+            }
+
+            return mappedUsers;
         }
 
-        /// <summary>
-        /// Get articles liked by a specific user
-        /// </summary>
+
         public async Task<IEnumerable<GetCulturalArticleDto>> GetLikedArticlesAsync(int userId)
         {
-            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(l => l.UserId == userId, new[] { "User" });
+            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(l => l.UserId == userId, null);
             var articleIds = likes.Select(l => l.CulturalArticleId).Distinct();
-            var articles = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(a => articleIds.Contains(a.Id), new[] { "User" });
+            var articles = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(a => articleIds.Contains(a.Id), null);
             return _mapper.Map<IEnumerable<GetCulturalArticleDto>>(articles);
         }
 
-        /// <summary>
-        /// Count the number of likes on a specific article
-        /// </summary>
+
         public async Task<int> CountLikesAsync(int culturalArticleId)
         {
             var specParams = new SpecParams { FilterId = culturalArticleId };
@@ -61,9 +73,6 @@ namespace OurHeritage.Service.Implementations
             return await _unitOfWork.Repository<Like>().CountAsync(spec);
         }
 
-        /// <summary>
-        /// Check if a user has liked a specific article
-        /// </summary>
         public async Task<bool> IsLikedAsync(int culturalArticleId, int userId)
         {
             var like = await _unitOfWork.Repository<Like>().FindAsync(l =>
@@ -71,9 +80,7 @@ namespace OurHeritage.Service.Implementations
             return like != null;
         }
 
-        /// <summary>
-        /// Add a like to an article
-        /// </summary>
+
         public async Task<ResponseDto> AddLikeAsync(CreateLikeDto addLikeDto)
         {
             // Check if the author of the article has blocked the user
@@ -122,9 +129,6 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        /// <summary>
-        /// Remove like from an article
-        /// </summary>
         public async Task<ResponseDto> RemoveLikeAsync(int culturalArticleId, int userId)
         {
             var like = await _unitOfWork.Repository<Like>().FindAsync(l =>
@@ -151,14 +155,14 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        /// <summary>
-        /// Get all likes on a specific article
-        /// </summary>
         public async Task<ResponseDto> GetAllLikesOnCulturalArticleAsync(int culturalArticleId)
         {
-            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(l => l.CulturalArticleId == culturalArticleId, new[] { "User" });
+            // Include the User in the query by adding "User" to the includes array
+            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(
+                l => l.CulturalArticleId == culturalArticleId,
+                new[] { "User" });
 
-            if (likes == null)
+            if (likes == null || !likes.Any())
             {
                 return new ResponseDto
                 {
@@ -169,6 +173,23 @@ namespace OurHeritage.Service.Implementations
             }
 
             var mappedLikes = _mapper.Map<IEnumerable<GetLikeDto>>(likes);
+
+            // Set user name and profile picture for each like
+            foreach (var dto in mappedLikes)
+            {
+                var correspondingLike = likes.FirstOrDefault(l => l.Id == dto.Id);
+                if (correspondingLike != null && correspondingLike.User != null)
+                {
+                    dto.NameOfUser = $"{correspondingLike.User.FirstName} {correspondingLike.User.LastName}";
+                    dto.UserProfilePicture = correspondingLike.User?.ProfilePicture ?? "default.jpg";
+                }
+                else
+                {
+                    dto.NameOfUser = "Unknown User";
+                    dto.UserProfilePicture = "default.jpg";
+                }
+            }
+
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -177,5 +198,6 @@ namespace OurHeritage.Service.Implementations
                 Models = mappedLikes
             };
         }
+
     }
 }

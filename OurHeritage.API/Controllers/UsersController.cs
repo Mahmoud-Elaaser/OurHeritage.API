@@ -35,7 +35,7 @@ namespace OurHeritage.API.Controllers
             var entities = await _unitOfWork.Repository<User>().ListAsync(spec);
             var response = _paginationService.Paginate<User, GetUserDto>(entities, specParams, e => new GetUserDto
             {
-                id = e.Id,
+                Id = e.Id,
                 FirstName = e.FirstName,
                 LastName = e.LastName,
                 ProfilePicture = e.ProfilePicture,

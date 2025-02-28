@@ -25,8 +25,27 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetAllCommentsAsync()
         {
-            var comments = await _unitOfWork.Repository<Comment>().ListAllAsync();
+            var comments = await _unitOfWork.Repository<Comment>()
+                .GetAllPredicated(c => true, new[] { "User" });
+
             var mappedComments = _mapper.Map<IEnumerable<GetCommentDto>>(comments);
+
+            // Set user information for each comment
+            foreach (var dto in mappedComments)
+            {
+                var correspondingComment = comments.FirstOrDefault(c => c.Id == dto.Id);
+                if (correspondingComment != null && correspondingComment.User != null)
+                {
+                    dto.NameOfUser = $"{correspondingComment.User.FirstName} {correspondingComment.User.LastName}";
+                    dto.UserProfilePicture = correspondingComment.User?.ProfilePicture ?? "default.jpg";
+                }
+                else
+                {
+                    dto.NameOfUser = "Unknown User";
+                    dto.UserProfilePicture = "default.jpg";
+                }
+            }
+
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -37,8 +56,11 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetCommentByIdAsync(int id)
         {
-            var comment = await _unitOfWork.Repository<Comment>().FindAsync(c => c.Id == id);
-            if (comment == null)
+            // Include the User in the query
+            var comments = await _unitOfWork.Repository<Comment>()
+                .GetAllPredicated(c => c.Id == id, new[] { "User" });
+
+            if (comments == null || !comments.Any())
             {
                 return new ResponseDto
                 {
@@ -47,7 +69,16 @@ namespace OurHeritage.Service.Implementations
                     Message = "Comment not found."
                 };
             }
+
+            var comment = comments.First();
             var mappedComment = _mapper.Map<GetCommentDto>(comment);
+
+            // Add user name and profile picture to the DTO
+            mappedComment.NameOfUser = comment.User != null
+                ? $"{comment.User.FirstName} {comment.User.LastName}"
+                : "Unknown User";
+
+            mappedComment.UserProfilePicture = comment.User?.ProfilePicture ?? "default.jpg";
 
             return new ResponseDto
             {
@@ -69,7 +100,23 @@ namespace OurHeritage.Service.Implementations
             var article = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(createCommentDto.CulturalArticleId);
             await _hubContext.Clients.User(article.UserId.ToString()).SendAsync("ReceiveNotification", $"User with id: {createCommentDto.UserId} commented on your article");
 
+            // Get the user information to include in the response
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(createCommentDto.UserId);
+
             var mappedComment = _mapper.Map<GetCommentDto>(comment);
+
+            // Set user information
+            if (user != null)
+            {
+                mappedComment.NameOfUser = $"{user.FirstName} {user.LastName}";
+                mappedComment.UserProfilePicture = user.ProfilePicture ?? "default.jpg";
+            }
+            else
+            {
+                mappedComment.NameOfUser = "Unknown User";
+                mappedComment.UserProfilePicture = "default.jpg";
+            }
+
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -129,21 +176,32 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
+
+
         public async Task<ResponseDto> GetAllCommentsOnCulturalArticleAsync(Expression<Func<Comment, bool>> predicate, string[] includes = null)
         {
             var comments = await _unitOfWork.Repository<Comment>().GetAllPredicated(predicate, new[] { "User" });
 
-            if (comments == null)
+            var mappedComments = _mapper.Map<IEnumerable<GetCommentDto>>(comments);
+
+            // Set user information for each comment
+            foreach (var dto in mappedComments)
             {
-                return new ResponseDto
+                var correspondingComment = comments.FirstOrDefault(c => c.Id == dto.Id);
+                if (correspondingComment != null && correspondingComment.User != null)
                 {
-                    IsSucceeded = false,
-                    Status = 404,
-                    Message = "Comments not found"
-                };
+                    dto.NameOfUser = $"{correspondingComment.User.FirstName} {correspondingComment.User.LastName}";
+                    dto.UserProfilePicture = !string.IsNullOrEmpty(correspondingComment.User.ProfilePicture)
+                        ? correspondingComment.User.ProfilePicture
+                        : "default.jpg";
+                }
+                else
+                {
+                    dto.NameOfUser = "Unknown User";
+                    dto.UserProfilePicture = "default.jpg";
+                }
             }
 
-            var mappedComments = _mapper.Map<IEnumerable<GetCommentDto>>(comments);
             return new ResponseDto
             {
                 IsSucceeded = true,

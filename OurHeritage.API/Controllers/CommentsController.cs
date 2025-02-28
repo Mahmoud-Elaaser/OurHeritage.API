@@ -32,13 +32,17 @@ namespace OurHeritage.API.Controllers
             var spec = new EntitySpecification<Comment>(specParams, e =>
                 (string.IsNullOrEmpty(specParams.Search) || e.Content.ToLower().Contains(specParams.Search.ToLower())));
 
-            var entities = await _unitOfWork.Repository<Comment>().ListAsync(spec);
-            var response = _paginationService.Paginate<Comment, GetCommentDto>(entities, specParams, e => new GetCommentDto
+            // Include User entity to fetch creator details
+            var entities = await _unitOfWork.Repository<Comment>()
+                .GetAllPredicated(spec.Criteria, new[] { "User" });
+            var response = _paginationService.Paginate(entities, specParams, e => new GetCommentDto
             {
                 Id = e.Id,
                 Content = e.Content,
                 CulturalArticleId = e.CulturalArticleId,
                 UserId = e.UserId,
+                NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
+                UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
                 DateCreated = e.DateCreated
             });
 
@@ -94,13 +98,17 @@ namespace OurHeritage.API.Controllers
         {
             var spec = new EntitySpecification<Comment>(specParams, e => e.CulturalArticleId == culturalArticleId);
 
-            var entities = await _unitOfWork.Repository<Comment>().ListAsync(spec);
-            var response = _paginationService.Paginate<Comment, GetCommentDto>(entities, specParams, e => new GetCommentDto
+            // Include User entity to fetch creator details
+            var entities = await _unitOfWork.Repository<Comment>()
+                .GetAllPredicated(spec.Criteria, new[] { "User" });
+            var response = _paginationService.Paginate(entities, specParams, e => new GetCommentDto
             {
                 Id = e.Id,
                 Content = e.Content,
                 CulturalArticleId = e.CulturalArticleId,
                 UserId = e.UserId,
+                NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
+                UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
                 DateCreated = e.DateCreated
             });
 
