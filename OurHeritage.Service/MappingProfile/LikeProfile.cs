@@ -19,7 +19,11 @@ namespace OurHeritage.Service.MappingProfile
                 .ForMember(dest => dest.LikedAt, opt => opt.MapFrom(src => DateTime.UtcNow))
                 .ForMember(dest => dest.CulturalArticleId, opt => opt.MapFrom(src => src.CulturalArticleId))
                 .ForMember(dest => dest.UserId, opt => opt.MapFrom(src => src.UserId))
+                
                 .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.Id))
+                .ForMember(dest => $"{dest.User.FirstName} {dest.User.LastName}", opt => opt.MapFrom(src =>src.NameOfUser))
+                .ForMember(dest => dest.User.ProfilePicture, opt => opt.MapFrom(src =>src.UserProfilePicture))
+                
                 .ReverseMap();
         }
     }

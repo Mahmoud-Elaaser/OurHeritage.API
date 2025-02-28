@@ -8,6 +8,8 @@ using OurHeritage.Core.Entities;
 using OurHeritage.Repo;
 using OurHeritage.Repo.Repositories.Implementations;
 using OurHeritage.Service;
+using OurHeritage.Service.Helper;
+using OurHeritage.Service.MappingProfile;
 using System.Text;
 
 namespace OurHeritage.API
@@ -39,6 +41,12 @@ namespace OurHeritage.API
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+            builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+            builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            FilesSetting.Configure(builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>(), builder.Configuration);
+
+
+
 
 
             #region Auth for swagger
@@ -115,7 +123,7 @@ namespace OurHeritage.API
             }
             #endregion
 
-
+            app.UseStaticFiles();
             app.UseSwagger();
             app.UseSwaggerUI();
 

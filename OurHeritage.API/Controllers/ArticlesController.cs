@@ -35,7 +35,7 @@ namespace OurHeritage.API.Controllers
                 (string.IsNullOrEmpty(specParams.Search) || e.Content.ToLower().Contains(specParams.Search.ToLower())) &&
                 (!specParams.FilterId.HasValue || e.CategoryId == specParams.FilterId));
 
-            var entities = await _unitOfWork.Repository<CulturalArticle>().ListAsync(spec);
+            var entities = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(spec.Criteria, new[] { "User", "Category" });
             var totalEntities = await _unitOfWork.Repository<CulturalArticle>().CountAsync(spec);
 
             var response = _paginationService.Paginate<CulturalArticle, GetCulturalArticleDto>(entities, specParams, e => new GetCulturalArticleDto
@@ -44,8 +44,11 @@ namespace OurHeritage.API.Controllers
                 Title = e.Title,
                 Content = e.Content,
                 CategoryId = e.CategoryId,
-                ImageURL=e.ImageURL
-               // DateCreated = e.DateCreated
+                ImageURL=e.ImageURL,
+                NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
+                UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
+                NameOfCategory = e.Category.Name
+                //DateCreated = e.DateCreated
             });
 
             return Ok(response);

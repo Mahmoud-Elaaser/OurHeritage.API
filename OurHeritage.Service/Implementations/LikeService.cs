@@ -31,12 +31,12 @@ namespace OurHeritage.Service.Implementations
         public async Task<IEnumerable<GetUserDto>> GetUsersWhoLikedArticleAsync(int culturalArticleId)
         {
             var likes = await _unitOfWork.Repository<Like>()
-                .GetAllPredicated(l => l.CulturalArticleId == culturalArticleId, null);
+                .GetAllPredicated(l => l.CulturalArticleId == culturalArticleId, new[] { "User" });
 
             var userIds = likes.Select(l => l.UserId).Distinct();
 
             var users = await _unitOfWork.Repository<User>()
-                .GetAllPredicated(u => userIds.Contains(u.Id), null);
+                .GetAllPredicated(u => userIds.Contains(u.Id), new[] { "User" });
             return _mapper.Map<IEnumerable<GetUserDto>>(users);
         }
 
@@ -45,9 +45,9 @@ namespace OurHeritage.Service.Implementations
         /// </summary>
         public async Task<IEnumerable<GetCulturalArticleDto>> GetLikedArticlesAsync(int userId)
         {
-            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(l => l.UserId == userId, null);
+            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(l => l.UserId == userId, new[] { "User" });
             var articleIds = likes.Select(l => l.CulturalArticleId).Distinct();
-            var articles = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(a => articleIds.Contains(a.Id), null);
+            var articles = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(a => articleIds.Contains(a.Id), new[] { "User" });
             return _mapper.Map<IEnumerable<GetCulturalArticleDto>>(articles);
         }
 
@@ -156,7 +156,7 @@ namespace OurHeritage.Service.Implementations
         /// </summary>
         public async Task<ResponseDto> GetAllLikesOnCulturalArticleAsync(int culturalArticleId)
         {
-            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(l => l.CulturalArticleId == culturalArticleId, null);
+            var likes = await _unitOfWork.Repository<Like>().GetAllPredicated(l => l.CulturalArticleId == culturalArticleId, new[] { "User" });
 
             if (likes == null)
             {

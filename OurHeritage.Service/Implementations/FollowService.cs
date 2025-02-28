@@ -98,6 +98,7 @@ namespace OurHeritage.Service.Implementations
         {
             // Check if the user exists
             var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+
             if (user == null)
             {
                 return new ResponseDto
@@ -113,7 +114,8 @@ namespace OurHeritage.Service.Implementations
             // Include the Follower navigation property to ensure it's loaded
             string[] includes = { nameof(Follow.Follower) };
 
-            var followers = await _unitOfWork.Repository<Follow>().GetAllPredicated(predicate, includes);
+            var followers = await _unitOfWork.Repository<Follow>().GetAllPredicated(predicate, new[] { "User"});
+
 
             var followerDtos = _mapper.Map<IEnumerable<GetFollowerDto>>(followers);
 

@@ -11,6 +11,7 @@
         public int UserId { get; set; }
         public string NameOfUser { get; set; }
         public string UserProfilePicture { get; set; }
+        public string NameOfCategory { get; set; }
     }
 
 }

@@ -131,7 +131,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetAllCommentsOnCulturalArticleAsync(Expression<Func<Comment, bool>> predicate, string[] includes = null)
         {
-            var comments = await _unitOfWork.Repository<Comment>().GetAllPredicated(predicate, includes);
+            var comments = await _unitOfWork.Repository<Comment>().GetAllPredicated(predicate, new[] { "User" });
 
             if (comments == null)
             {

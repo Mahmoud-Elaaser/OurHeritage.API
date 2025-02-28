@@ -114,8 +114,8 @@ namespace OurHeritage.Service.Implementations
                     Message = "User not found"
                 };
             }
-          FilesSetting.DeleteFile(user.ProfilePicture, "ProfilePicture"); 
-          FilesSetting.DeleteFile(user.CoverProfilePicture, "ProfilePicture"); 
+          FilesSetting.DeleteFile(user.ProfilePicture); 
+          FilesSetting.DeleteFile(user.CoverProfilePicture); 
             _unitOfWork.Repository<User>().Delete(user);
             await _unitOfWork.CompleteAsync();
             return new ResponseDto

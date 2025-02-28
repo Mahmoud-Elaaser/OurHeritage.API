@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using OurHeritage.Core.Entities;
 using OurHeritage.Service.DTOs.HandiCraftDto;
+using OurHeritage.Service.Helper;
 
 namespace OurHeritage.Service.MappingProfile
 {
@@ -12,8 +13,8 @@ namespace OurHeritage.Service.MappingProfile
                 .ReverseMap();
 
 
-            CreateMap<GetHandiCraftDto, HandiCraft>()
-                .ReverseMap();
+            CreateMap<HandiCraft, GetHandiCraftDto>().ReverseMap();
+
         }
     }
 }

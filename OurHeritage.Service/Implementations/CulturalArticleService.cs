@@ -60,6 +60,17 @@ namespace OurHeritage.Service.Implementations
         {
             var culturalArticles = await _unitOfWork.Repository<CulturalArticle>().ListAllAsync();
             var mappedCulturalArticles = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(culturalArticles);
+            foreach (var dto in mappedCulturalArticles)
+            {
+                var correspondingHandiCraft = culturalArticles.FirstOrDefault(h => h.Id == dto.Id);
+                if (correspondingHandiCraft != null && correspondingHandiCraft.User != null)
+                {
+                    dto.NameOfUser = $"{correspondingHandiCraft.User.FirstName} {correspondingHandiCraft.User.LastName}";
+                    dto.UserProfilePicture = correspondingHandiCraft.User?.ProfilePicture ?? "default.jpg";
+                    dto.NameOfCategory = correspondingHandiCraft.Category.Name;
+                }
+                
+            }
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -88,8 +99,8 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetCulturalArticleByIdAsync(int id)
         {
-            var culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
-            if (culturalArticle == null)
+            var _culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(e => e.Id == id, new[] { "User", "Category" }); 
+            if (_culturalArticle == null)
             {
                 return new ResponseDto
                 {
@@ -98,8 +109,17 @@ namespace OurHeritage.Service.Implementations
                     Message = "CulturalArticle not found"
                 };
             }
+            var culturalArticle = _culturalArticle.First();
+
 
             var mappedCulturalArticle = _mapper.Map<GetCulturalArticleDto>(culturalArticle);
+            mappedCulturalArticle.NameOfUser = culturalArticle.User != null
+               ? $"{culturalArticle.User.FirstName} {culturalArticle.User.LastName}"
+               : "Unknown User";
+
+            // Assign profile picture
+            mappedCulturalArticle.UserProfilePicture = culturalArticle.User?.ProfilePicture ?? "default.jpg";
+            mappedCulturalArticle.NameOfCategory = culturalArticle.Category?.Name;
             return new ResponseDto
             {
                 IsSucceeded = true,
@@ -206,7 +226,7 @@ namespace OurHeritage.Service.Implementations
             {
                 foreach (var imageUrl in existingCulturalArticle.ImageURL)
                 {
-                    FilesSetting.DeleteFile(imageUrl, "CulturalArticle");
+                    FilesSetting.DeleteFile(imageUrl);
 
                 }
             }

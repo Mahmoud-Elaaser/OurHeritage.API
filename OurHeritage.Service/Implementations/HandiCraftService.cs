@@ -37,6 +37,7 @@ namespace OurHeritage.Service.Implementations
                 {
                     dto.ImageOrVideo.Add(uploadedFiles);
                 }
+
                 else
                 {
                     return new ResponseDto
@@ -63,7 +64,7 @@ namespace OurHeritage.Service.Implementations
         public async Task<ResponseDto> GetHandiCraftByIdAsync(int HandiCraftId)
         {
             var HandiCraft = await _unitOfWork.Repository<HandiCraft>()
-                .GetAllPredicated(e => e.Id == HandiCraftId, new[] { "User" });
+                .GetAllPredicated(e => e.Id == HandiCraftId, new[] { "User", "Category" });
 
             if (HandiCraft == null || !HandiCraft.Any())
             {
@@ -89,6 +90,8 @@ namespace OurHeritage.Service.Implementations
 
             // Assign profile picture
             HandiCraftDto.UserProfilePicture = handiCraftEntity.User?.ProfilePicture ?? "default.jpg";
+            HandiCraftDto.NameOfCategory = handiCraftEntity.Category?.Name ;
+
 
             return new ResponseDto
             {
@@ -101,11 +104,11 @@ namespace OurHeritage.Service.Implementations
 
 
 
-
+        
         public async Task<ResponseDto> GetAllHandiCraftsAsync()
         {
             var HandiCrafts = await _unitOfWork.Repository<HandiCraft>()
-                .GetAllPredicated(h => true, new[] { "User" });
+                .GetAllPredicated(h => true, new[] { "User", "Category" });
 
             var mappedHandiCrafts = _mapper.Map<IEnumerable<GetHandiCraftDto>>(HandiCrafts);
 
@@ -116,6 +119,8 @@ namespace OurHeritage.Service.Implementations
                 if (correspondingHandiCraft != null && correspondingHandiCraft.User != null)
                 {
                     dto.NameOfUser = $"{correspondingHandiCraft.User.FirstName} {correspondingHandiCraft.User.LastName}";
+                    dto.UserProfilePicture = correspondingHandiCraft.User?.ProfilePicture ?? "default.jpg";
+                    dto.NameOfCategory=correspondingHandiCraft.Category.Name;
                 }
                 else
                 {
@@ -150,7 +155,7 @@ namespace OurHeritage.Service.Implementations
             {
                 foreach (var imageUrl in dto.ImageOrVideo)
                 {
-                    FilesSetting.DeleteFile(imageUrl, "CulturalArticle");
+                    FilesSetting.DeleteFile(imageUrl);
 
                 }
             }
