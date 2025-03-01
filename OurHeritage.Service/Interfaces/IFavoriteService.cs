@@ -1,16 +1,17 @@
 ﻿using OurHeritage.Core.Entities;
+using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.FavoriteDto;
+using System.Linq.Expressions;
+using System.Security.Claims;
 
 namespace OurHeritage.Service.Interfaces
 {
     public interface IFavoriteService
     {
-        Task<List<Favorite>> GetAllFavoritesAsync();
-        Task<List<Favorite>> GetFavoritesByUserIdAsync(int userId);
-        Task<Favorite> GetFavoriteByIdAsync(int id);
-        Task<Favorite> GetFavoriteByUserAndHandiCraftAsync(int userId, int handiCraftId);
-        Task<Favorite> AddFavoriteAsync(Favorite favorite);
-        Task<bool> RemoveFavoriteAsync(int id);
-        Task<bool> IsFavoriteAsync(int userId, int handiCraftId);
-
+        Task<ResponseDto> GetUserFavoritesAsync(ClaimsPrincipal user);
+        Task<ResponseDto> GetFavoriteByIdAsync(int id);
+        Task<ResponseDto> AddFavoriteAsync(AddToFavoriteDto createFavoriteDto);
+        Task<ResponseDto> DeleteFavoriteAsync(int id);
+        Task<ResponseDto> GetUserFavoritesAsync(int userId, Expression<Func<Favorite, bool>> predicate = null);
     }
 }
