@@ -38,6 +38,7 @@ namespace OurHeritage.API.Controllers
                 Id = e.Id,
                 FirstName = e.FirstName,
                 LastName = e.LastName,
+                FullName=e.FirstName+e.LastName,
                 ProfilePicture = e.ProfilePicture,
                 CoverProfilePicture = e.CoverProfilePicture,
                 Phone = e.Phone,

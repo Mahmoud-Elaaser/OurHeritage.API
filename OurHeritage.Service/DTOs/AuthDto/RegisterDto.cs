@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using OurHeritage.Core.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace OurHeritage.Service.DTOs.AuthDto
 {
@@ -31,7 +32,7 @@ namespace OurHeritage.Service.DTOs.AuthDto
         public DateTime DateOfBirth { get; set; }
 
         [Required(ErrorMessage = "Gender is required.")]
-        public string Gender { get; set; }
+        public Gender Gender { get; set; }
 
     }
 }

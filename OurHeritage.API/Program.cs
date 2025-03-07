@@ -38,6 +38,7 @@ namespace OurHeritage.API
             builder.Services.AddServiceDependencies();
             builder.Services.AddRepoDependencies();
             #endregion
+            builder.WebHost.UseWebRoot("wwwroot");
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
