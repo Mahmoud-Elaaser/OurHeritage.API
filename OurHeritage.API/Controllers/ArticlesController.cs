@@ -28,7 +28,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet]
-       // [Authorize(Roles = "Admin")]
+        // [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetCulturalArticleDto>>> GetArticles([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<CulturalArticle>(specParams, e =>
@@ -44,7 +44,7 @@ namespace OurHeritage.API.Controllers
                 Title = e.Title,
                 Content = e.Content,
                 CategoryId = e.CategoryId,
-                ImageURL=e.ImageURL,
+                ImageURL = e.ImageURL,
                 NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
                 UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
                 NameOfCategory = e.Category.Name
@@ -132,6 +132,19 @@ namespace OurHeritage.API.Controllers
                 return NotFound(new ApiResponse(404, response.Message));
             }
             return Ok(response.Data);
+        }
+
+        [HttpGet("{userId}/articles")]
+        public async Task<IActionResult> GetUserArticles(int userId)
+        {
+            var response = await _culturalArticleService.GetUserArticlesAsync(userId);
+
+            if (!response.IsSucceeded)
+            {
+                return BadRequest(new ApiResponse(response.Status, response.Message));
+            }
+
+            return Ok(response);
         }
     }
 }

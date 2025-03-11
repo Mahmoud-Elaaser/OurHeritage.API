@@ -2,6 +2,7 @@
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.CommentDto;
 using System.Linq.Expressions;
+using System.Security.Claims;
 
 namespace OurHeritage.Service.Interfaces
 {
@@ -11,7 +12,7 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> GetAllCommentsAsync();
         Task<ResponseDto> AddCommentAsync(CreateOrUpdateCommentDto createCommentDto);
         Task<ResponseDto> UpdateCommentAsync(int id, CreateOrUpdateCommentDto updateCommentDto);
-        Task<ResponseDto> DeleteCommentAsync(int id);
+        Task<ResponseDto> DeleteCommentAsync(ClaimsPrincipal user, int commentId);
         Task<ResponseDto> GetAllCommentsOnCulturalArticleAsync(Expression<Func<Comment, bool>> predicate, string[] includes = null);
     }
 }

@@ -1,5 +1,4 @@
 ﻿using AutoMapper;
-using Microsoft.AspNetCore.Http;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
@@ -7,7 +6,6 @@ using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.CulturalArticleDto;
 using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
-using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace OurHeritage.Service.Implementations
@@ -69,7 +67,7 @@ namespace OurHeritage.Service.Implementations
                     dto.UserProfilePicture = correspondingHandiCraft.User?.ProfilePicture ?? "default.jpg";
                     dto.NameOfCategory = correspondingHandiCraft.Category.Name;
                 }
-                
+
             }
             return new ResponseDto
             {
@@ -99,7 +97,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetCulturalArticleByIdAsync(int id)
         {
-            var _culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(e => e.Id == id, new[] { "User", "Category" }); 
+            var _culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(e => e.Id == id, new[] { "User", "Category" });
             if (_culturalArticle == null)
             {
                 return new ResponseDto
@@ -178,7 +176,7 @@ namespace OurHeritage.Service.Implementations
         {
             foreach (var image in createCulturalArticleDto.Images)
             {
-                var uploadedFiles = FilesSetting.UploadFile(image ,"CulturalArticle");
+                var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
                 if (uploadedFiles != null && uploadedFiles.Any())
                 {
                     createCulturalArticleDto.ImageURL.Add(uploadedFiles);
@@ -194,7 +192,7 @@ namespace OurHeritage.Service.Implementations
 
                 }
             }
-                var culturalArticle = _mapper.Map<CulturalArticle>(createCulturalArticleDto);
+            var culturalArticle = _mapper.Map<CulturalArticle>(createCulturalArticleDto);
             await _unitOfWork.Repository<CulturalArticle>().AddAsync(culturalArticle);
             await _unitOfWork.CompleteAsync();
 
@@ -212,8 +210,8 @@ namespace OurHeritage.Service.Implementations
         {
 
             var existingCulturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
-           
-             if (existingCulturalArticle == null)
+
+            if (existingCulturalArticle == null)
             {
                 return new ResponseDto
                 {
@@ -248,7 +246,7 @@ namespace OurHeritage.Service.Implementations
 
                 }
             }
-                _mapper.Map(updateCulturalArticleDto, existingCulturalArticle);
+            _mapper.Map(updateCulturalArticleDto, existingCulturalArticle);
             _unitOfWork.Repository<CulturalArticle>().Update(existingCulturalArticle);
             await _unitOfWork.CompleteAsync();
 
@@ -281,6 +279,50 @@ namespace OurHeritage.Service.Implementations
                 IsSucceeded = true,
                 Status = 200,
                 Message = "CulturalArticle deleted successfully."
+            };
+        }
+
+        public async Task<ResponseDto> GetUserArticlesAsync(int userId)
+        {
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+            // Get all articles created by this user
+            Expression<Func<CulturalArticle, bool>> articlePredicate = a => a.UserId == userId;
+
+
+            string[] includes = { "Category", "Comments" };
+            var userArticles = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(articlePredicate, includes);
+
+
+            if (!userArticles.Any())
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = true,
+                    Status = 200,
+                    Models = Enumerable.Empty<GetCulturalArticleDto>(),
+                    Message = "No articles found for this user"
+                };
+            }
+
+
+            var articleDtos = _mapper.Map<IEnumerable<GetCulturalArticleDto>>(userArticles);
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Models = articleDtos,
+                Message = "User articles retrieved successfully"
             };
         }
     }

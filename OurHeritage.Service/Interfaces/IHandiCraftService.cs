@@ -1,5 +1,6 @@
 ﻿using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.HandiCraftDto;
+using System.Security.Claims;
 
 namespace OurHeritage.Service.Interfaces
 {
@@ -9,8 +10,6 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> GetHandiCraftByIdAsync(int HandiCraftId);
         Task<ResponseDto> GetAllHandiCraftsAsync();
         Task<ResponseDto> UpdateHandiCraftAsync(int HandiCraftId, CreateOrUpdateHandiCraftDto dto);
-        Task<ResponseDto> DeleteHandiCraftAsync(int HandiCraftId);
-
-
+        Task<ResponseDto> DeleteHandiCraftAsync(ClaimsPrincipal user, int handiCraftId);
     }
 }

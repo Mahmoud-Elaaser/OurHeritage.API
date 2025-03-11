@@ -85,7 +85,7 @@ namespace OurHeritage.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteComment(int id)
         {
-            var response = await _commentService.DeleteCommentAsync(id);
+            var response = await _commentService.DeleteCommentAsync(User, id);
             if (!response.IsSucceeded)
             {
                 return BadRequest(new ApiResponse(response.Status, response.Message));

@@ -89,7 +89,7 @@ namespace OurHeritage.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteFavorite(int id)
         {
-            var response = await _favoriteService.DeleteFavoriteAsync(id);
+            var response = await _favoriteService.DeleteFavoriteAsync(User, id);
             if (!response.IsSucceeded)
                 return BadRequest(new ApiResponse(response.Status, response.Message));
             return Ok(response.Message);

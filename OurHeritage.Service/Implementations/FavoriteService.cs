@@ -83,19 +83,55 @@ namespace OurHeritage.Service.Implementations
             return new ResponseDto { IsSucceeded = true, Message = "Favorite added successfully" };
         }
 
-        public async Task<ResponseDto> DeleteFavoriteAsync(int id)
+        public async Task<ResponseDto> DeleteFavoriteAsync(ClaimsPrincipal user, int favoriteId)
         {
-            var favorite = await _unitOfWork.Repository<Favorite>().GetByIdAsync(id);
+            // Extract user ID from the token
+            if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 401,
+                    Message = "User ID not found in token."
+                };
+            }
+
+            // Extract user role from the token
+            var loggedInUserRole = user.FindFirst(ClaimTypes.Role)?.Value;
+
+            var favorite = await _unitOfWork.Repository<Favorite>().GetByIdAsync(favoriteId);
             if (favorite == null)
             {
-                return new ResponseDto { IsSucceeded = false, Message = "Favorite not found" };
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "Favorite not found."
+                };
+            }
+
+            // Check if the logged-in user is the favorite owner or an admin
+            if (loggedInUserId != favorite.UserId && loggedInUserRole != "Admin")
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 403,
+                    Message = "You do not have permission to delete this favorite."
+                };
             }
 
             _unitOfWork.Repository<Favorite>().Delete(favorite);
             await _unitOfWork.CompleteAsync();
 
-            return new ResponseDto { IsSucceeded = true, Message = "Favorite deleted successfully" };
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Message = "Favorite deleted successfully."
+            };
         }
+
 
         public async Task<ResponseDto> GetUserFavoritesAsync(int userId, Expression<Func<Favorite, bool>> predicate = null)
         {

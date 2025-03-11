@@ -5,6 +5,7 @@ using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.HandiCraftDto;
 using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
+using System.Security.Claims;
 
 namespace OurHeritage.Service.Implementations
 {
@@ -90,7 +91,7 @@ namespace OurHeritage.Service.Implementations
 
             // Assign profile picture
             HandiCraftDto.UserProfilePicture = handiCraftEntity.User?.ProfilePicture ?? "default.jpg";
-            HandiCraftDto.NameOfCategory = handiCraftEntity.Category?.Name ;
+            HandiCraftDto.NameOfCategory = handiCraftEntity.Category?.Name;
 
 
             return new ResponseDto
@@ -102,9 +103,6 @@ namespace OurHeritage.Service.Implementations
         }
 
 
-
-
-        
         public async Task<ResponseDto> GetAllHandiCraftsAsync()
         {
             var HandiCrafts = await _unitOfWork.Repository<HandiCraft>()
@@ -120,7 +118,7 @@ namespace OurHeritage.Service.Implementations
                 {
                     dto.NameOfUser = $"{correspondingHandiCraft.User.FirstName} {correspondingHandiCraft.User.LastName}";
                     dto.UserProfilePicture = correspondingHandiCraft.User?.ProfilePicture ?? "default.jpg";
-                    dto.NameOfCategory=correspondingHandiCraft.Category.Name;
+                    dto.NameOfCategory = correspondingHandiCraft.Category.Name;
                 }
                 else
                 {
@@ -188,27 +186,55 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> DeleteHandiCraftAsync(int HandiCraftId)
+        public async Task<ResponseDto> DeleteHandiCraftAsync(ClaimsPrincipal user, int handiCraftId)
         {
-            var HandiCraft = await _unitOfWork.Repository<HandiCraft>().GetByIdAsync(HandiCraftId);
-            if (HandiCraft == null)
+            // Extract user ID from the token
+            if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 401,
+                    Message = "User ID not found in token."
+                };
+            }
+
+            // Extract user role from the token
+            var loggedInUserRole = user.FindFirst(ClaimTypes.Role)?.Value;
+
+            var handiCraft = await _unitOfWork.Repository<HandiCraft>().GetByIdAsync(handiCraftId);
+            if (handiCraft == null)
             {
                 return new ResponseDto
                 {
                     IsSucceeded = false,
                     Status = 404,
-                    Message = "HandiCraft not found"
+                    Message = "HandiCraft not found."
                 };
             }
-            _unitOfWork.Repository<HandiCraft>().Delete(HandiCraft);
+
+            // Check if the logged-in user is the owner of the HandiCraft or an admin
+            if (loggedInUserId != handiCraft.UserId && loggedInUserRole != "Admin")
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 403,
+                    Message = "You do not have permission to delete this HandiCraft."
+                };
+            }
+
+            _unitOfWork.Repository<HandiCraft>().Delete(handiCraft);
             await _unitOfWork.CompleteAsync();
+
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Status = 200,
-                Message = "HandiCraft deleted successfully"
+                Message = "HandiCraft deleted successfully."
             };
         }
+
 
     }
 }

@@ -5,6 +5,8 @@ using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.UserDto;
 using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
+using System.Linq.Expressions;
+using System.Security.Claims;
 
 namespace OurHeritage.Service.Implementations
 {
@@ -102,10 +104,64 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> DeleteUserAsync(int userId)
+        public async Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal user, int userId)
         {
-            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
-            if (user == null)
+            if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 401,
+                    Message = "User ID not found in token."
+                };
+            }
+
+            // Extract user role from the token
+            var loggedInUserRole = user.FindFirst(ClaimTypes.Role)?.Value;
+
+            var userToDelete = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (userToDelete == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found."
+                };
+            }
+
+            // Check if the logged-in user is either an admin or deleting their own account
+            if (loggedInUserId != userId && loggedInUserRole != "Admin")
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 403,
+                    Message = "You do not have permission to delete this user."
+                };
+            }
+
+            // Delete associated files
+            FilesSetting.DeleteFile(userToDelete.ProfilePicture);
+            FilesSetting.DeleteFile(userToDelete.CoverProfilePicture);
+
+            _unitOfWork.Repository<User>().Delete(userToDelete);
+            await _unitOfWork.CompleteAsync();
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Message = "User deleted successfully."
+            };
+        }
+
+
+        public async Task<ResponseDto> GetSuggestedFriendsAsync(int userId)
+        {
+            // Get the current user to ensure they exist
+            var currentUser = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (currentUser == null)
             {
                 return new ResponseDto
                 {
@@ -114,16 +170,64 @@ namespace OurHeritage.Service.Implementations
                     Message = "User not found"
                 };
             }
-          FilesSetting.DeleteFile(user.ProfilePicture); 
-          FilesSetting.DeleteFile(user.CoverProfilePicture); 
-            _unitOfWork.Repository<User>().Delete(user);
-            await _unitOfWork.CompleteAsync();
+
+
+            var allUsers = await _unitOfWork.Repository<User>().ListAllAsync();
+
+            // Get users this person is already following
+            Expression<Func<Follow, bool>> followingPredicate = f => f.FollowerId == userId;
+            var followings = await _unitOfWork.Repository<Follow>().GetAllPredicated(followingPredicate, null!);
+
+            var followingIds = followings.Select(f => f.FollowingId).ToHashSet();
+
+            // Filter out the current user and users already being followed
+            var potentialSuggestions = allUsers
+                .Where(u => u.Id != userId && !followingIds.Contains(u.Id))
+                .ToList();
+
+
+            if (!potentialSuggestions.Any())
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = true,
+                    Status = 200,
+                    Models = Enumerable.Empty<GetUserDto>(),
+                    Message = "No suggested friends available"
+                };
+            }
+
+            // Randomly select users to make it dynamic on each page reload
+            var random = new Random();
+
+            // Shuffle the list using Fisher-Yates algorithm
+            for (int i = potentialSuggestions.Count - 1; i > 0; i--)
+            {
+                int j = random.Next(0, i + 1);
+                var temp = potentialSuggestions[i];
+                potentialSuggestions[i] = potentialSuggestions[j];
+                potentialSuggestions[j] = temp;
+            }
+
+            // Take requested number of suggestions (or fewer if not enough users)
+            var suggestedUsers = potentialSuggestions
+                .Take(Math.Min(5, potentialSuggestions.Count))
+                .ToList();
+
+
+            var suggestedUserDtos = _mapper.Map<IEnumerable<GetUserDto>>(suggestedUsers);
+
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Status = 200,
-                Message = "User deleted successfully"
+                Models = suggestedUserDtos,
+                Message = "Suggested friends retrieved successfully"
             };
         }
+
+
+
     }
+
 }

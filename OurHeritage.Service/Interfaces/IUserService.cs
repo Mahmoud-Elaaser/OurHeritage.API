@@ -1,5 +1,6 @@
 ﻿using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.UserDto;
+using System.Security.Claims;
 
 namespace OurHeritage.Service.Interfaces
 {
@@ -9,7 +10,9 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> GetUserByIdAsync(int userId);
         Task<ResponseDto> GetAllUsersAsync();
         Task<ResponseDto> UpdateUserAsync(int userId, CreateOrUpdateUserDto dto);
-        Task<ResponseDto> DeleteUserAsync(int userId);
+        Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal user, int userId);
+        Task<ResponseDto> GetSuggestedFriendsAsync(int userId);
+
 
     }
 }

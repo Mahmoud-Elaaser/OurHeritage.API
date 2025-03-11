@@ -11,7 +11,7 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> GetUserFavoritesAsync(ClaimsPrincipal user);
         Task<ResponseDto> GetFavoriteByIdAsync(int id);
         Task<ResponseDto> AddFavoriteAsync(AddToFavoriteDto createFavoriteDto);
-        Task<ResponseDto> DeleteFavoriteAsync(int id);
+        Task<ResponseDto> DeleteFavoriteAsync(ClaimsPrincipal user, int favoriteId);
         Task<ResponseDto> GetUserFavoritesAsync(int userId, Expression<Func<Favorite, bool>> predicate = null);
     }
 }

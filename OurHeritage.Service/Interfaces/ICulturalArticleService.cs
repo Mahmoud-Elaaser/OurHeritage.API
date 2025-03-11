@@ -18,5 +18,7 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> AddCulturalArticleAsync(CreateOrUpdateCulturalArticleDto createCulturalArticleDto);
         Task<ResponseDto> UpdateCulturalArticleAsync(int id, CreateOrUpdateCulturalArticleDto updateCulturalArticleDto);
         Task<ResponseDto> DeleteCulturalArticleAsync(int id);
+
+        Task<ResponseDto> GetUserArticlesAsync(int userId);
     }
 }

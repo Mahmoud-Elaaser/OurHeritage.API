@@ -7,6 +7,7 @@ using OurHeritage.Service.DTOs.CommentDto;
 using OurHeritage.Service.Interfaces;
 using OurHeritage.Service.SignalR;
 using System.Linq.Expressions;
+using System.Security.Claims;
 
 namespace OurHeritage.Service.Implementations
 {
@@ -152,9 +153,23 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> DeleteCommentAsync(int id)
+        public async Task<ResponseDto> DeleteCommentAsync(ClaimsPrincipal user, int commentId)
         {
-            var comment = await _unitOfWork.Repository<Comment>().FindAsync(c => c.Id == id);
+            // Extract user ID from the token
+            if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 401,
+                    Message = "User ID not found in token."
+                };
+            }
+
+            // Extract user role from the token
+            var loggedInUserRole = user.FindFirst(ClaimTypes.Role)?.Value;
+
+            var comment = await _unitOfWork.Repository<Comment>().FindAsync(c => c.Id == commentId);
             if (comment == null)
             {
                 return new ResponseDto
@@ -162,6 +177,17 @@ namespace OurHeritage.Service.Implementations
                     IsSucceeded = false,
                     Status = 404,
                     Message = "Comment not found."
+                };
+            }
+
+            // Check if the logged-in user is the comment owner or an admin
+            if (loggedInUserId != comment.UserId && loggedInUserRole != "Admin")
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 403,
+                    Message = "You do not have permission to delete this comment."
                 };
             }
 
@@ -175,7 +201,6 @@ namespace OurHeritage.Service.Implementations
                 Message = "Comment deleted successfully."
             };
         }
-
 
 
         public async Task<ResponseDto> GetAllCommentsOnCulturalArticleAsync(Expression<Func<Comment, bool>> predicate, string[] includes = null)

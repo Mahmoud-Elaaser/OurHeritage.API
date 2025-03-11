@@ -6,6 +6,7 @@ using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs.UserDto;
 using OurHeritage.Service.Interfaces;
+using System.Security.Claims;
 
 namespace OurHeritage.API.Controllers
 {
@@ -38,7 +39,7 @@ namespace OurHeritage.API.Controllers
                 Id = e.Id,
                 FirstName = e.FirstName,
                 LastName = e.LastName,
-                FullName=e.FirstName+e.LastName,
+                FullName = e.FirstName + e.LastName,
                 ProfilePicture = e.ProfilePicture,
                 CoverProfilePicture = e.CoverProfilePicture,
                 Phone = e.Phone,
@@ -46,9 +47,6 @@ namespace OurHeritage.API.Controllers
                 Connections = e.Connections,
                 DateJoined = e.DateJoined,
                 Gender = (Core.Enums.Gender)Enum.Parse(typeof(OurHeritage.Core.Enums.Gender), e.Gender, true)
-
-
-
 
             });
 
@@ -69,9 +67,6 @@ namespace OurHeritage.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(int id, [FromForm] CreateOrUpdateUserDto dto)
         {
-
-
-
             var response = await _userService.UpdateUserAsync(id, dto);
             if (!response.IsSucceeded)
             {
@@ -81,12 +76,9 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        //  [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
-
-
-            var response = await _userService.DeleteUserAsync(id);
+            var response = await _userService.DeleteUserAsync(User, id);
             if (!response.IsSucceeded)
             {
                 return BadRequest(new ApiResponse(response.Status, response.Message));
@@ -94,5 +86,20 @@ namespace OurHeritage.API.Controllers
 
             return Ok(response.Message);
         }
+
+
+        [HttpGet("suggested-friends")]
+        public async Task<IActionResult> GetSuggestedFriends()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+            var response = await _userService.GetSuggestedFriendsAsync(userId);
+            return Ok(response.Models);
+        }
+
+
     }
 }

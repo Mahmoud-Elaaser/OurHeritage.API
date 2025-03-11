@@ -5,7 +5,6 @@ using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs.HandiCraftDto;
-using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.API.Controllers
@@ -34,7 +33,7 @@ namespace OurHeritage.API.Controllers
 
             // Include User entity to fetch creator details
             var entities = await _unitOfWork.Repository<HandiCraft>()
-                .GetAllPredicated(spec.Criteria, new[] { "User" , "Category" });
+                .GetAllPredicated(spec.Criteria, new[] { "User", "Category" });
 
 
             var response = _paginationService.Paginate(entities, specParams, e => new GetHandiCraftDto
@@ -49,7 +48,7 @@ namespace OurHeritage.API.Controllers
                 Description = e.Description,
                 NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
                 UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
-                NameOfCategory=e.Category.Name
+                NameOfCategory = e.Category.Name
             });
 
 
@@ -92,7 +91,7 @@ namespace OurHeritage.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteHandiCraft(int id)
         {
-            var handiCraft = await _handiCraftService.DeleteHandiCraftAsync(id);
+            var handiCraft = await _handiCraftService.DeleteHandiCraftAsync(User, id);
             if (!handiCraft.IsSucceeded)
             {
                 return BadRequest(new ApiResponse(handiCraft.Status, handiCraft.Message));

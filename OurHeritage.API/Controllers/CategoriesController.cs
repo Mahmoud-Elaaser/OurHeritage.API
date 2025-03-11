@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
@@ -75,7 +76,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpDelete("{id}")]
-        //     [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
             var category = await _categoryService.DeleteCategoryAsync(id);
