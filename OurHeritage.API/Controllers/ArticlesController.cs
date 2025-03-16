@@ -6,6 +6,7 @@ using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.CulturalArticleDto;
+using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
 using System.Security.Claims;
 
@@ -35,35 +36,45 @@ namespace OurHeritage.API.Controllers
                 (string.IsNullOrEmpty(specParams.Search) || e.Content.ToLower().Contains(specParams.Search.ToLower())) &&
                 (!specParams.FilterId.HasValue || e.CategoryId == specParams.FilterId));
 
-            var entities = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(spec.Criteria, new[] { "User", "Category" });
+            // Load Articles with related data (User, Category, Likes, Comments)
+            var entities = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(
+                spec.Criteria, new[] { "User", "Category", "Likes", "Comments" });
+
             var totalEntities = await _unitOfWork.Repository<CulturalArticle>().CountAsync(spec);
 
-            var response = _paginationService.Paginate<CulturalArticle, GetCulturalArticleDto>(entities, specParams, e => new GetCulturalArticleDto
-            {
-                Id = e.Id,
-                Title = e.Title,
-                Content = e.Content,
-                CategoryId = e.CategoryId,
-                ImageURL = e.ImageURL,
-                NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
-                UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
-                NameOfCategory = e.Category.Name
-                //DateCreated = e.DateCreated
-            });
+            var response = _paginationService.Paginate<CulturalArticle, GetCulturalArticleDto>(
+                entities, specParams, e => new GetCulturalArticleDto
+                {
+                    Id = e.Id,
+                    Title = e.Title,
+                    Content = e.Content,
+                    CategoryId = e.CategoryId,
+                    UserId = e.UserId,
+                    ImageURL = e.ImageURL,
+                    NameOfUser = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
+                    UserProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
+                    NameOfCategory = e.Category.Name,
+                    DateCreated = e.DateCreated.ToString("yyyy-MM-dd"), // Returns only the formatted date
+                    TimeAgo = TimeAgoHelper.GetTimeAgo(e.DateCreated), // Returns time ago format
+                    LikeCount = e.Likes?.Count ?? 0,
+                    CommentCount = e.Comments?.Count ?? 0
+                });
 
             return Ok(response);
         }
-
         [HttpGet("{id}")]
         public async Task<IActionResult> GetArticleById(int id)
         {
-            var response = await _culturalArticleService.GetCulturalArticleByIdAsync(id);
-            if (response.Model == null)
+            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            var response = await _culturalArticleService.GetCulturalArticleByIdAsync(id, currentUserId);
+            if (!response.IsSucceeded)
             {
-                return NotFound(new ApiResponse(404, "Article not found"));
+                return NotFound(new ApiResponse(response.Status, response.Message));
             }
             return Ok(response.Model);
         }
+
 
         [HttpGet("feed")]
         public async Task<IActionResult> GetFeed()
@@ -145,6 +156,15 @@ namespace OurHeritage.API.Controllers
             }
 
             return Ok(response);
+        }
+
+        // return count of likes & comments 
+        [HttpGet("{id}/stats")]
+        public async Task<IActionResult> GetArticleStats(int id)
+        {
+            var stats = await _culturalArticleService.GetArticleStatsAsync(id);
+
+            return Ok(stats);
         }
     }
 }

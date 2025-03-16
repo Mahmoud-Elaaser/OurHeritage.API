@@ -14,11 +14,13 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ICulturalArticleRepository _articleRepository;
 
-        public CulturalArticleService(IUnitOfWork unitOfWork, IMapper mapper)
+        public CulturalArticleService(IUnitOfWork unitOfWork, IMapper mapper, ICulturalArticleRepository articleRepository)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _articleRepository = articleRepository;
         }
 
         public async Task<GenericResponseDto<CulturalArticleStatisticsDto>> GetCulturalArticleStatisticsAsync(int culturalArticleId)
@@ -95,34 +97,51 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> GetCulturalArticleByIdAsync(int id)
+        public async Task<ResponseDto> GetCulturalArticleByIdAsync(int id, int currentUserId)
         {
-            var _culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetAllPredicated(e => e.Id == id, new[] { "User", "Category" });
-            if (_culturalArticle == null)
+            // Fetch only the first matching article 
+            var article = (await _unitOfWork.Repository<CulturalArticle>()
+                .GetAllPredicated(a => a.Id == id, new[] { "User", "Category", "Likes", "Comments" }))
+                .FirstOrDefault();
+
+
+            if (article == null)
             {
                 return new ResponseDto
                 {
                     IsSucceeded = false,
                     Status = 404,
-                    Message = "CulturalArticle not found"
+                    Message = "Cultural Article not found"
                 };
             }
-            var culturalArticle = _culturalArticle.First();
+
+            bool isFollowing = await _unitOfWork.Repository<Follow>()
+                .AnyAsync(f => f.FollowerId == currentUserId && f.FollowingId == article.UserId);
 
 
-            var mappedCulturalArticle = _mapper.Map<GetCulturalArticleDto>(culturalArticle);
-            mappedCulturalArticle.NameOfUser = culturalArticle.User != null
-               ? $"{culturalArticle.User.FirstName} {culturalArticle.User.LastName}"
-               : "Unknown User";
+            var articleDto = new GetCulturalArticleDto
+            {
+                Id = article.Id,
+                Title = article.Title,
+                Content = article.Content,
+                UserId = article.UserId,
+                CategoryId = article.CategoryId,
+                ImageURL = article.ImageURL,
+                NameOfUser = article.User != null ? $"{article.User.FirstName} {article.User.LastName}" : "Unknown User",
+                UserProfilePicture = article.User?.ProfilePicture ?? "default.jpg",
+                NameOfCategory = article.Category?.Name ?? "Unknown Category",
+                DateCreated = article.DateCreated.ToString("yyyy-MM-dd"),
+                TimeAgo = TimeAgoHelper.GetTimeAgo(article.DateCreated),
+                LikeCount = article.Likes?.Count ?? 0,
+                CommentCount = article.Comments?.Count ?? 0,
+                IsFollowing = isFollowing
+            };
 
-            // Assign profile picture
-            mappedCulturalArticle.UserProfilePicture = culturalArticle.User?.ProfilePicture ?? "default.jpg";
-            mappedCulturalArticle.NameOfCategory = culturalArticle.Category?.Name;
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Status = 200,
-                Model = mappedCulturalArticle
+                Model = articleDto
             };
         }
 
@@ -323,6 +342,17 @@ namespace OurHeritage.Service.Implementations
                 Status = 200,
                 Models = articleDtos,
                 Message = "User articles retrieved successfully"
+            };
+        }
+
+        public async Task<ArticleStatsDto> GetArticleStatsAsync(int articleId)
+        {
+            var (likeCount, commentCount) = await _articleRepository.GetArticleLikeAndCommentCountAsync(articleId);
+
+            return new ArticleStatsDto
+            {
+                LikeCount = likeCount,
+                CommentCount = commentCount
             };
         }
     }

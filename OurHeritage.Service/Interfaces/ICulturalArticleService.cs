@@ -11,7 +11,7 @@ namespace OurHeritage.Service.Interfaces
         Task<GenericResponseDto<CulturalArticleStatisticsDto>> GetCulturalArticleStatisticsAsync(int culturalArticleId);
         Task<ResponseDto> GetAllCulturalArticlesAsync();
         Task<ResponseDto> GetUserFeedAsync(int userId);
-        Task<ResponseDto> GetCulturalArticleByIdAsync(int id);
+        Task<ResponseDto> GetCulturalArticleByIdAsync(int id, int currentUserId);
         Task<ResponseDto> GetCulturalArticlesWithSpecAsync(ISpecification<CulturalArticle> spec);
         Task<ResponseDto> FindCulturalArticleAsync(Expression<Func<CulturalArticle, bool>> predicate);
         Task<ResponseDto> GetCulturalArticlesByPredicateAsync(Expression<Func<CulturalArticle, bool>> predicate, string[] includes = null);
@@ -20,5 +20,7 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> DeleteCulturalArticleAsync(int id);
 
         Task<ResponseDto> GetUserArticlesAsync(int userId);
+
+        Task<ArticleStatsDto> GetArticleStatsAsync(int articleId);
     }
 }
