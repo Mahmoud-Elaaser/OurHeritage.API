@@ -40,7 +40,7 @@ namespace OurHeritage.API.Controllers
                 UserId = e.UserId,
                 HandiCraftId = e.HandiCraftId,
                 HandiCraftTitle = e.HandiCraft?.Title ?? "Unknown",
-                DateCreated = e.DateCreated,
+                DateCreated = e.DateCreated.ToString("yyyy-MM-dd"),
                 CreatorName = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
                 CreatorProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
             });
@@ -115,7 +115,7 @@ namespace OurHeritage.API.Controllers
                 HandiCraftTitle = e.HandiCraft?.Title ?? "Unknown",
                 CreatorProfilePicture = e.User?.ProfilePicture ?? "default.jpg",
                 CreatorName = e.User != null ? $"{e.User.FirstName} {e.User.LastName}" : "Unknown User",
-                DateCreated = e.DateCreated,
+                DateCreated = e.DateCreated.ToString("yyyy-MM-dd"),
             });
 
             return Ok(response);

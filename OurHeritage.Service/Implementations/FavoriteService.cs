@@ -44,18 +44,34 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> GetFavoriteByIdAsync(int id)
         {
-            var favorite = await _unitOfWork.Repository<Favorite>().GetByIdAsync(id);
+            var favorite = (await _unitOfWork.Repository<Favorite>()
+                .GetAllPredicated(x => x.Id == id, new[] { "User", "HandiCraft" })).FirstOrDefault();
+
             if (favorite == null)
             {
                 return new ResponseDto { IsSucceeded = false, Message = "Favorite not found" };
             }
+
+            var favoriteDto = new GetFavoriteDto
+            {
+                Id = favorite.Id,
+                UserId = favorite.UserId,
+                CreatorName = favorite.User != null ? $"{favorite.User.FirstName} {favorite.User.LastName}" : "Unknown User",
+                CreatorProfilePicture = favorite.User?.ProfilePicture ?? "default.jpg",
+                HandiCraftId = favorite.HandiCraftId,
+                HandiCraftTitle = favorite.HandiCraft?.Title ?? "Unknown Handicraft",
+                DateCreated = favorite.DateCreated.ToString("yyyy-MM-dd")
+
+            };
+
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Message = "Favorite retrieved successfully",
-                Model = favorite
+                Model = favoriteDto
             };
         }
+
 
         public async Task<ResponseDto> AddFavoriteAsync(AddToFavoriteDto createFavoriteDto)
         {
@@ -71,11 +87,7 @@ namespace OurHeritage.Service.Implementations
                 DateCreated = DateTime.UtcNow
             };
 
-            var favorite = _unitOfWork.Repository<Favorite>().GetByIdAsync(newFavorite.Id);
-            if (favorite != null)
-            {
-                return new ResponseDto { IsSucceeded = false, Message = "You already added it to favorites" };
-            }
+
 
             await _unitOfWork.Repository<Favorite>().AddAsync(newFavorite);
             await _unitOfWork.CompleteAsync();
@@ -163,7 +175,7 @@ namespace OurHeritage.Service.Implementations
                     : "Unknown User",
                 UserProfilePicture = handiCraft.User?.ProfilePicture ?? "default.jpg",
                 CategoryId = handiCraft.CategoryId,
-                NameOfCategory = handiCraft.Category?.Name ?? "",
+                CategoryName = handiCraft.Category?.Name ?? "",
                 Price = handiCraft.Price
             };
 

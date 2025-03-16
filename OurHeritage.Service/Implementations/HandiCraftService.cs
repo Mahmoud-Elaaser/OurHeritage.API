@@ -2,6 +2,7 @@
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.FavoriteDto;
 using OurHeritage.Service.DTOs.HandiCraftDto;
 using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
@@ -62,12 +63,13 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> GetHandiCraftByIdAsync(int HandiCraftId)
+        public async Task<ResponseDto> GetHandiCraftByIdAsync(int id)
         {
-            var HandiCraft = await _unitOfWork.Repository<HandiCraft>()
-                .GetAllPredicated(e => e.Id == HandiCraftId, new[] { "User", "Category" });
+            var handiCraft = (await _unitOfWork.Repository<HandiCraft>()
+                .GetAllPredicated(h => h.Id == id, new[] { "User", "Category", "Favorite" }))
+                .FirstOrDefault();
 
-            if (HandiCraft == null || !HandiCraft.Any())
+            if (handiCraft == null)
             {
                 return new ResponseDto
                 {
@@ -77,54 +79,77 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            var handiCraftEntity = HandiCraft.First();
+            var handiCraftDto = new GetHandiCraftDto
+            {
+                Id = handiCraft.Id,
+                Title = handiCraft.Title,
+                Description = handiCraft.Description,
+                ImageOrVideo = handiCraft.ImageOrVideo,
+                Price = handiCraft.Price,
+                CategoryId = handiCraft.CategoryId,
+                CategoryName = handiCraft.Category?.Name ?? "Unknown Category",
+                UserId = handiCraft.UserId,
+                NameOfUser = handiCraft.User != null ? $"{handiCraft.User.FirstName} {handiCraft.User.LastName}" : "Unknown User",
+                UserProfilePicture = handiCraft.User?.ProfilePicture ?? "default.jpg",
+                DateAdded = handiCraft.DateAdded.ToString("yyyy-MM-dd"),
+                FavoriteCount = handiCraft.Favorite?.Count ?? 0,
+                TimeAgo = TimeAgoHelper.GetTimeAgo(handiCraft.DateAdded),
+                FavoritedBy = handiCraft.Favorite?.Select(f => new GetFavoriteDto  // List of users who favorited it
+                {
+                    UserId = f.UserId,
+                    CreatorName = f.User != null ? $"{f.User.FirstName} {f.User.LastName}" : "Unknown User",
+                    CreatorProfilePicture = f.User?.ProfilePicture ?? "default.jpg",
+                    DateCreated = f.DateCreated.ToString("yyyy-MM-dd"),
+                    HandiCraftId = f.HandiCraftId,
+                    HandiCraftTitle = f.HandiCraft.Title,
+                    Id = f.Id
 
-            var HandiCraftDto = _mapper.Map<GetHandiCraftDto>(handiCraftEntity);
-
-            // Convert List<string> to a List<string> in DTO
-            HandiCraftDto.ImageOrVideo = handiCraftEntity.ImageOrVideo ?? new List<string>();
-
-            // Assign user details
-            HandiCraftDto.NameOfUser = handiCraftEntity.User != null
-                ? $"{handiCraftEntity.User.FirstName} {handiCraftEntity.User.LastName}"
-                : "Unknown User";
-
-            // Assign profile picture
-            HandiCraftDto.UserProfilePicture = handiCraftEntity.User?.ProfilePicture ?? "default.jpg";
-            HandiCraftDto.NameOfCategory = handiCraftEntity.Category?.Name;
-
+                }).ToList() ?? new List<GetFavoriteDto>()
+            };
 
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Status = 200,
-                Model = HandiCraftDto
+                Model = handiCraftDto
             };
         }
 
 
         public async Task<ResponseDto> GetAllHandiCraftsAsync()
         {
-            var HandiCrafts = await _unitOfWork.Repository<HandiCraft>()
-                .GetAllPredicated(h => true, new[] { "User", "Category" });
+            var handiCrafts = await _unitOfWork.Repository<HandiCraft>()
+                .GetAllPredicated(h => true, new[] { "User", "Category", "Favorite" });
 
-            var mappedHandiCrafts = _mapper.Map<IEnumerable<GetHandiCraftDto>>(HandiCrafts);
-
-            // Set NameOfUser for each item
-            foreach (var dto in mappedHandiCrafts)
+            var mappedHandiCrafts = handiCrafts.Select(h => new GetHandiCraftDto
             {
-                var correspondingHandiCraft = HandiCrafts.FirstOrDefault(h => h.Id == dto.Id);
-                if (correspondingHandiCraft != null && correspondingHandiCraft.User != null)
-                {
-                    dto.NameOfUser = $"{correspondingHandiCraft.User.FirstName} {correspondingHandiCraft.User.LastName}";
-                    dto.UserProfilePicture = correspondingHandiCraft.User?.ProfilePicture ?? "default.jpg";
-                    dto.NameOfCategory = correspondingHandiCraft.Category.Name;
-                }
-                else
-                {
-                    dto.NameOfUser = "Unknown User";
-                }
-            }
+                Id = h.Id,
+                Title = h.Title,
+                Description = h.Description,
+                ImageOrVideo = h.ImageOrVideo,
+                Price = h.Price,
+                CategoryId = h.CategoryId,
+                CategoryName = h.Category?.Name ?? "Unknown Category",
+                UserId = h.UserId,
+                NameOfUser = h.User != null ? $"{h.User.FirstName} {h.User.LastName}" : "Unknown User",
+                UserProfilePicture = h.User?.ProfilePicture ?? "default.jpg",
+                DateAdded = h.DateAdded.ToString("yyyy-MM-dd"),
+                FavoriteCount = h.Favorite?.Count ?? 0,
+                TimeAgo = TimeAgoHelper.GetTimeAgo(h.DateAdded),
+                FavoritedBy = h.Favorite != null && h.Favorite.Count > 0
+                    ? h.Favorite.Select(f => new GetFavoriteDto
+                    {
+                        UserId = f.UserId,
+                        CreatorName = f.User != null ? $"{f.User.FirstName} {f.User.LastName}" : "Unknown User",
+                        CreatorProfilePicture = f.User?.ProfilePicture ?? "default.jpg",
+                        DateCreated = f.DateCreated.ToString("yyyy-MM-dd"),
+                        HandiCraftId = f.HandiCraftId,
+                        Id = f.Id,
+                        HandiCraftTitle = f.HandiCraft.Title
+                    }).ToList()
+                    : new List<GetFavoriteDto>()
+
+            }).ToList();
 
             return new ResponseDto
             {
@@ -133,8 +158,6 @@ namespace OurHeritage.Service.Implementations
                 Models = mappedHandiCrafts
             };
         }
-
-
 
         public async Task<ResponseDto> UpdateHandiCraftAsync(int HandiCraftId, CreateOrUpdateHandiCraftDto dto)
         {

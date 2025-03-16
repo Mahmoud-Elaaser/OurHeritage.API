@@ -8,6 +8,6 @@
         public string CreatorName { get; set; }
         public string HandiCraftTitle { get; set; }
         public string CreatorProfilePicture { get; set; }
-        public DateTime DateCreated { get; set; }
+        public string DateCreated { get; set; }
     }
 }
