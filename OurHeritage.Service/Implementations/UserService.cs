@@ -104,6 +104,90 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
+        public async Task<ResponseDto> UpdateProfilePictureAsync(int userId, UpdateProfilePicDto imageProfileDto)
+        {
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+            if (imageProfileDto?.ImageProfile == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Profile picture file is required"
+                };
+            }
+
+            var fileUrl = FilesSetting.UploadFile(imageProfileDto.ImageProfile, "ProfilePicture");
+
+            // delete the old image 
+            if (!string.IsNullOrEmpty(user.ProfilePicture))
+            {
+                FilesSetting.DeleteFile(user.ProfilePicture);
+            }
+
+            user.ProfilePicture = fileUrl;
+            _unitOfWork.Repository<User>().Update(user);
+            await _unitOfWork.CompleteAsync();
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Message = "Profile picture updated successfully"
+            };
+        }
+
+        public async Task<ResponseDto> UpdateCoverPhotoAsync(int userId, UpdateCoverPhotoDto coverPhotoDto)
+        {
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+            if (coverPhotoDto?.ImageCover == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Cover photo file is required"
+                };
+            }
+
+            if (!string.IsNullOrEmpty(user.CoverProfilePicture))
+            {
+                FilesSetting.DeleteFile(user.CoverProfilePicture);
+            }
+
+            user.CoverProfilePicture = FilesSetting.UploadFile(coverPhotoDto.ImageCover, "CoverPhoto");
+            _unitOfWork.Repository<User>().Update(user);
+            await _unitOfWork.CompleteAsync();
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Message = "Cover photo updated successfully"
+            };
+        }
+
+
         public async Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal user, int userId)
         {
             if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))

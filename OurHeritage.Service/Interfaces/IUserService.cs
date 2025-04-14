@@ -13,6 +13,7 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal user, int userId);
         Task<ResponseDto> GetSuggestedFriendsAsync(int userId);
 
-
+        Task<ResponseDto> UpdateProfilePictureAsync(int userId, UpdateProfilePicDto imageProfileDto);
+        Task<ResponseDto> UpdateCoverPhotoAsync(int userId, UpdateCoverPhotoDto coverPhotoDto);
     }
 }

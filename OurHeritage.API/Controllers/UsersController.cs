@@ -75,6 +75,25 @@ namespace OurHeritage.API.Controllers
             return Ok(response.Message);
         }
 
+        [HttpPost("profile-picture")]
+        public async Task<IActionResult> UpdateProfilePicture([FromForm] UpdateProfilePicDto dto)
+        {
+            var tokenId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = int.Parse(tokenId);
+            var result = await _userService.UpdateProfilePictureAsync(userId, dto);
+            return Ok(result.Message);
+        }
+
+
+        [HttpPost("cover-photo")]
+        public async Task<IActionResult> UpdateCoverPhoto([FromForm] UpdateCoverPhotoDto dto)
+        {
+            var tokenId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = int.Parse(tokenId);
+            var result = await _userService.UpdateCoverPhotoAsync(userId, dto);
+            return Ok(result.Message);
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
