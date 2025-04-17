@@ -20,6 +20,7 @@ namespace OurHeritage.Service
             services.AddTransient<ICulturalArticleService, CulturalArticleService>();
             services.AddTransient<IFavoriteService, FavoriteService>();
             services.AddTransient<IPaginationService, PaginationService>();
+            services.AddTransient<IStoryService, StoryService>();
 
             services.AddMemoryCache();
             services.AddSignalR();

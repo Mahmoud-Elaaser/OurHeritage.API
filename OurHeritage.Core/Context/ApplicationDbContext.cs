@@ -22,6 +22,7 @@ namespace OurHeritage.Core.Context
         public DbSet<Like> Likes { get; set; }
         public DbSet<Order> Orders { get; set; }
         public DbSet<HandiCraft> HandiCrafts { get; set; }
+        public DbSet<Story> Stories { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
