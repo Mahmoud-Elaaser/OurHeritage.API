@@ -10,7 +10,7 @@ namespace OurHeritage.Service.DTOs.CulturalArticleDto
         public List<IFormFile>? Images { get; set; }
         public List<string>? ImageURL { get; set; } = new List<string>();
         public int CategoryId { get; set; }
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
         public DateTime? DateCreated { get; set; }
     }
 }

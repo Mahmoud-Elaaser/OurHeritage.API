@@ -12,8 +12,8 @@ using OurHeritage.Core.Context;
 namespace OurHeritage.Core.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20250301122345_UpdateFavoriteEntity")]
-    partial class UpdateFavoriteEntity
+    [Migration("20250418122137_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -416,6 +416,27 @@ namespace OurHeritage.Core.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("OurHeritage.Core.Entities.Story", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Stories");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.User", b =>

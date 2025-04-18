@@ -104,6 +104,15 @@ namespace OurHeritage.API.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateArticle([FromForm] CreateOrUpdateCulturalArticleDto createDto)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+            {
+                createDto.UserId = userId;
+            }
+            else
+            {
+                return Unauthorized("Valid User ID is required");
+            }
             var response = await _culturalArticleService.AddCulturalArticleAsync(createDto);
             if (!response.IsSucceeded)
             {

@@ -21,6 +21,7 @@ namespace OurHeritage.Service
             services.AddTransient<IFavoriteService, FavoriteService>();
             services.AddTransient<IPaginationService, PaginationService>();
             services.AddTransient<IStoryService, StoryService>();
+            services.AddScoped<IUserHandicraftMatchingService, UserHandicraftMatchingService>();
 
             services.AddMemoryCache();
             services.AddSignalR();
