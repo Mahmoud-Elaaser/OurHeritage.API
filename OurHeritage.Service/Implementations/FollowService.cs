@@ -114,7 +114,8 @@ namespace OurHeritage.Service.Implementations
             // Include the Follower navigation property to ensure it's loaded
             string[] includes = { nameof(Follow.Follower) };
 
-            var followers = await _unitOfWork.Repository<Follow>().GetAllPredicated(predicate, new[] { "User"});
+            var followers = await _unitOfWork.Repository<Follow>().GetAllPredicated(predicate, includes);
+
 
 
             var followerDtos = _mapper.Map<IEnumerable<GetFollowerDto>>(followers);

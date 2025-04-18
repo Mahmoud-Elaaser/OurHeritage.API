@@ -11,7 +11,7 @@ namespace OurHeritage.Service.DTOs.HandiCraftDto
         public List<string>? ImageOrVideo { get; set; } = new List<string>();
         public double? Price { get; set; }
         public int CategoryId { get; set; }
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
 
     }
 }

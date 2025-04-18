@@ -179,25 +179,26 @@ namespace OurHeritage.Service.Implementations
                     FilesSetting.DeleteFile(imageUrl);
 
                 }
-            }
-            foreach (var image in dto.Images)
-            {
-                var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
-                if (uploadedFiles != null && uploadedFiles.Any())
+                foreach (var image in dto.Images)
                 {
-                    dto.ImageOrVideo.Add(uploadedFiles);
-                }
-                else
-                {
-                    return new ResponseDto
+                    var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
+                    if (uploadedFiles != null && uploadedFiles.Any())
                     {
-                        IsSucceeded = false,
-                        Status = 401,
-                        Message = "Please upload a valid file."
-                    };
+                        dto.ImageOrVideo.Add(uploadedFiles);
+                    }
+                    else
+                    {
+                        return new ResponseDto
+                        {
+                            IsSucceeded = false,
+                            Status = 401,
+                            Message = "Please upload a valid file."
+                        };
 
+                    }
                 }
             }
+            
             _mapper.Map(dto, HandiCraft);
             _unitOfWork.Repository<HandiCraft>().Update(HandiCraft);
             await _unitOfWork.CompleteAsync();

@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
 using OurHeritage.Core.Entities;
@@ -124,6 +125,15 @@ namespace OurHeritage.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateArticle(int id, [FromForm] CreateOrUpdateCulturalArticleDto updateDto)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+            {
+                updateDto.UserId = userId;
+            }
+            else
+            {
+                return Unauthorized("Valid User ID is required");
+            }
             var response = await _culturalArticleService.UpdateCulturalArticleAsync(id, updateDto);
             if (!response.IsSucceeded)
             {

@@ -6,6 +6,7 @@ using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.LikeDto;
 using OurHeritage.Service.Interfaces;
+using System.Security.Claims;
 
 namespace OurHeritage.API.Controllers
 {
@@ -28,6 +29,15 @@ namespace OurHeritage.API.Controllers
         [HttpPost("add-like")]
         public async Task<IActionResult> AddLike([FromBody] CreateLikeDto dto)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+            {
+                dto.UserId = userId;
+            }
+            else
+            {
+                return Unauthorized("Valid User ID is required");
+            }
             var result = await _likeService.AddLikeAsync(dto);
             if (!result.IsSucceeded)
             {

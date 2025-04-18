@@ -246,25 +246,26 @@ namespace OurHeritage.Service.Implementations
                     FilesSetting.DeleteFile(imageUrl);
 
                 }
-            }
-            foreach (var image in updateCulturalArticleDto.Images)
-            {
-                var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
-                if (uploadedFiles != null && uploadedFiles.Any())
+                foreach (var image in updateCulturalArticleDto.Images)
                 {
-                    updateCulturalArticleDto.ImageURL.Add(uploadedFiles);
-                }
-                else
-                {
-                    return new ResponseDto
+                    var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
+                    if (uploadedFiles != null && uploadedFiles.Any())
                     {
-                        IsSucceeded = false,
-                        Status = 401,
-                        Message = "Please upload a valid file."
-                    };
+                        updateCulturalArticleDto.ImageURL.Add(uploadedFiles);
+                    }
+                    else
+                    {
+                        return new ResponseDto
+                        {
+                            IsSucceeded = false,
+                            Status = 401,
+                            Message = "Please upload a valid file."
+                        };
 
+                    }
                 }
             }
+           
             _mapper.Map(updateCulturalArticleDto, existingCulturalArticle);
             _unitOfWork.Repository<CulturalArticle>().Update(existingCulturalArticle);
             await _unitOfWork.CompleteAsync();

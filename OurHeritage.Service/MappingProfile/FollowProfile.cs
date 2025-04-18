@@ -12,6 +12,8 @@ namespace OurHeritage.Service.MappingProfile
 
             CreateMap<Follow, GetFollowerDto>()
             .ForMember(dest => dest.Id, opt => opt.MapFrom(src => src.FollowerId))
+            .ForMember(dest => dest.UserProfilePicture, opt => opt.MapFrom(src => src.Following.ProfilePicture))
+
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.Follower.Email));
 
 

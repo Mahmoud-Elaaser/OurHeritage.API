@@ -6,6 +6,7 @@ using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs.CommentDto;
 using OurHeritage.Service.Interfaces;
+using System.Security.Claims;
 
 namespace OurHeritage.API.Controllers
 {
@@ -63,6 +64,15 @@ namespace OurHeritage.API.Controllers
         [HttpPost("add")]
         public async Task<IActionResult> AddComment([FromForm] CreateOrUpdateCommentDto dto)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+            {
+                dto.UserId = userId;
+            }
+            else
+            {
+                return Unauthorized("Valid User ID is required");
+            }
             var response = await _commentService.AddCommentAsync(dto);
             if (!response.IsSucceeded)
             {
@@ -74,6 +84,15 @@ namespace OurHeritage.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateComment(int id, [FromForm] CreateOrUpdateCommentDto dto)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+            {
+                dto.UserId = userId;
+            }
+            else
+            {
+                return Unauthorized("Valid User ID is required");
+            }
             var response = await _commentService.UpdateCommentAsync(id, dto);
             if (!response.IsSucceeded)
             {

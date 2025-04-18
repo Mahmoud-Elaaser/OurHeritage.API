@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
 using OurHeritage.Core.Entities;
@@ -8,6 +9,7 @@ using OurHeritage.Service.DTOs.FavoriteDto;
 using OurHeritage.Service.DTOs.HandiCraftDto;
 using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
+using System.Security.Claims;
 
 namespace OurHeritage.API.Controllers
 {
@@ -85,6 +87,15 @@ namespace OurHeritage.API.Controllers
         [HttpPost("create")]
         public async Task<IActionResult> CreateHandiCraft([FromForm] CreateOrUpdateHandiCraftDto createHandiCraftDto)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+            {
+                createHandiCraftDto.UserId = userId;
+            }
+            else
+            {
+                return Unauthorized("Valid User ID is required");
+            }
             var response = await _handiCraftService.CreateHandiCraftAsync(createHandiCraftDto);
             if (!response.IsSucceeded)
                 return BadRequest(new ApiResponse(response.Status, response.Message));
@@ -95,6 +106,15 @@ namespace OurHeritage.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateHandiCraft(int id, [FromForm] CreateOrUpdateHandiCraftDto updateHandiCraftDto)
         {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdClaim, out int userId))
+            {
+                updateHandiCraftDto.UserId = userId;
+            }
+            else
+            {
+                return Unauthorized("Valid User ID is required");
+            }
             var handiCraft = await _handiCraftService.UpdateHandiCraftAsync(id, updateHandiCraftDto);
             if (!handiCraft.IsSucceeded)
             {

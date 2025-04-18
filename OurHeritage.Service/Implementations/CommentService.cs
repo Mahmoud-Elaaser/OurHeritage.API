@@ -102,8 +102,9 @@ namespace OurHeritage.Service.Implementations
             await _hubContext.Clients.User(article.UserId.ToString()).SendAsync("ReceiveNotification", $"User with id: {createCommentDto.UserId} commented on your article");
 
             // Get the user information to include in the response
-            var user = await _unitOfWork.Repository<User>().GetByIdAsync(createCommentDto.UserId);
-
+            
+              var user = await _unitOfWork.Repository<User>().GetByIdAsync(createCommentDto.UserId);
+            
             var mappedComment = _mapper.Map<GetCommentDto>(comment);
 
             // Set user information
