@@ -193,22 +193,25 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> AddCulturalArticleAsync(CreateOrUpdateCulturalArticleDto createCulturalArticleDto)
         {
-            foreach (var image in createCulturalArticleDto.Images)
+            if (createCulturalArticleDto.Images != null)
             {
-                var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
-                if (uploadedFiles != null && uploadedFiles.Any())
+                foreach (var image in createCulturalArticleDto.Images)
                 {
-                    createCulturalArticleDto.ImageURL.Add(uploadedFiles);
-                }
-                else
-                {
-                    return new ResponseDto
+                    var uploadedFiles = FilesSetting.UploadFile(image, "CulturalArticle");
+                    if (uploadedFiles != null && uploadedFiles.Any())
                     {
-                        IsSucceeded = false,
-                        Status = 401,
-                        Message = "Please upload a valid file."
-                    };
+                        createCulturalArticleDto.ImageURL.Add(uploadedFiles);
+                    }
+                    else
+                    {
+                        return new ResponseDto
+                        {
+                            IsSucceeded = false,
+                            Status = 401,
+                            Message = "Please upload a valid file."
+                        };
 
+                    }
                 }
             }
             var culturalArticle = _mapper.Map<CulturalArticle>(createCulturalArticleDto);
@@ -265,7 +268,7 @@ namespace OurHeritage.Service.Implementations
                     }
                 }
             }
-           
+
             _mapper.Map(updateCulturalArticleDto, existingCulturalArticle);
             _unitOfWork.Repository<CulturalArticle>().Update(existingCulturalArticle);
             await _unitOfWork.CompleteAsync();
