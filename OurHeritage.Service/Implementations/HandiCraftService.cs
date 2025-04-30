@@ -198,7 +198,7 @@ namespace OurHeritage.Service.Implementations
                     }
                 }
             }
-            
+
             _mapper.Map(dto, HandiCraft);
             _unitOfWork.Repository<HandiCraft>().Update(HandiCraft);
             await _unitOfWork.CompleteAsync();
@@ -258,6 +258,22 @@ namespace OurHeritage.Service.Implementations
                 Message = "HandiCraft deleted successfully."
             };
         }
+
+
+        //public async Task<ResponseDto> GetAvailableStockCountAsync()
+        //{
+
+        //    var handiCrafts = await _unitOfWork.Repository<HandiCraft>()
+        //        .ListAllAsync();
+
+        //    return new ResponseDto
+        //    {
+        //        Message = $"Number of available handi crafts is {handiCrafts.Count()}",
+        //        Status = 200,
+        //        Model = handiCrafts.Count()
+        //    };
+
+        //}
 
 
     }

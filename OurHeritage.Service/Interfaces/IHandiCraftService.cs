@@ -11,5 +11,7 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> GetAllHandiCraftsAsync();
         Task<ResponseDto> UpdateHandiCraftAsync(int HandiCraftId, CreateOrUpdateHandiCraftDto dto);
         Task<ResponseDto> DeleteHandiCraftAsync(ClaimsPrincipal user, int handiCraftId);
+
+        //Task<ResponseDto> GetAvailableStockCountAsync();
     }
 }

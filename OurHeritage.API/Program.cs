@@ -8,8 +8,9 @@ using OurHeritage.Core.Entities;
 using OurHeritage.Repo;
 using OurHeritage.Repo.Repositories.Implementations;
 using OurHeritage.Service;
+using OurHeritage.Service.DTOs;
 using OurHeritage.Service.Helper;
-using OurHeritage.Service.MappingProfile;
+using Stripe;
 using System.Text;
 
 namespace OurHeritage.API
@@ -32,6 +33,11 @@ namespace OurHeritage.API
             builder.Services.AddIdentity<User, IdentityRole<int>>()
                 .AddEntityFrameworkStores<ApplicationDbContext>()
                 .AddDefaultTokenProviders();
+
+            builder.Services.Configure<StripeSettings>(builder.Configuration.GetSection("Stripe"));
+            var stripeSettings = builder.Configuration.GetSection("Stripe").Get<StripeSettings>();
+            StripeConfiguration.ApiKey = stripeSettings.SecretKey;
+
             #endregion
 
             #region Register Services
@@ -40,7 +46,13 @@ namespace OurHeritage.API
             #endregion
             builder.WebHost.UseWebRoot("wwwroot");
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                {
+                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                });
+
+
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
@@ -110,7 +122,7 @@ namespace OurHeritage.API
             });
 
             var app = builder.Build();
-       
+
 
             #region Database Initialization & Role Seeding
 

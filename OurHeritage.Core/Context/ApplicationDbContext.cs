@@ -20,9 +20,11 @@ namespace OurHeritage.Core.Context
         public DbSet<Follow> Followers { get; set; }
         public DbSet<Follow> Followings { get; set; }
         public DbSet<Like> Likes { get; set; }
-        public DbSet<Order> Orders { get; set; }
         public DbSet<HandiCraft> HandiCrafts { get; set; }
         public DbSet<Story> Stories { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<BasketItem> BasketItems { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

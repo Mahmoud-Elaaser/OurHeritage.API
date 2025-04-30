@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OurHeritage.Core.Context;
 
@@ -11,9 +12,11 @@ using OurHeritage.Core.Context;
 namespace OurHeritage.Core.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250430003242_UpdateOrderModel")]
+    partial class UpdateOrderModel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -167,7 +170,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("HandiCraftId");
 
-                    b.ToTable("OrderHandiCraft", (string)null);
+                    b.ToTable("OrderHandiCraft");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.BasketItem", b =>
@@ -193,7 +196,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("BasketItems", (string)null);
+                    b.ToTable("BasketItems");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.BlockUser", b =>
@@ -216,7 +219,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("BlockedUserId");
 
-                    b.ToTable("BlockUsers", (string)null);
+                    b.ToTable("BlockUsers");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Category", b =>
@@ -233,7 +236,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Categories", (string)null);
+                    b.ToTable("Categories");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Comment", b =>
@@ -263,7 +266,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Comments", (string)null);
+                    b.ToTable("Comments");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.CulturalArticle", b =>
@@ -301,7 +304,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("CulturalArticles", (string)null);
+                    b.ToTable("CulturalArticles");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Favorite", b =>
@@ -327,7 +330,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Favorites", (string)null);
+                    b.ToTable("Favorites");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Follow", b =>
@@ -342,7 +345,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("FollowingId");
 
-                    b.ToTable("Follow", (string)null);
+                    b.ToTable("Follow");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.HandiCraft", b =>
@@ -383,7 +386,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("HandiCrafts", (string)null);
+                    b.ToTable("HandiCrafts");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Like", b =>
@@ -409,7 +412,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Likes", (string)null);
+                    b.ToTable("Likes");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Order", b =>
@@ -433,6 +436,10 @@ namespace OurHeritage.Core.Migrations
                     b.Property<int>("OrderStatus")
                         .HasColumnType("int");
 
+                    b.Property<string>("StripeClientSecret")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("StripePaymentIntentId")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -447,7 +454,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("UserId");
 
-                    b.ToTable("Orders", (string)null);
+                    b.ToTable("Orders");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.OrderItem", b =>
@@ -476,7 +483,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("OrderId");
 
-                    b.ToTable("OrderItems", (string)null);
+                    b.ToTable("OrderItems");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Story", b =>
@@ -497,7 +504,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Stories", (string)null);
+                    b.ToTable("Stories");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.User", b =>
@@ -611,7 +618,7 @@ namespace OurHeritage.Core.Migrations
 
                     b.HasIndex("FollowingsId");
 
-                    b.ToTable("UserUser", (string)null);
+                    b.ToTable("UserUser");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<int>", b =>

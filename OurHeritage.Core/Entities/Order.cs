@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using OurHeritage.Core.Enums;
 
 namespace OurHeritage.Core.Entities
 {
@@ -14,6 +10,12 @@ namespace OurHeritage.Core.Entities
         public string Address { get; set; }
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
         public double TotalPrice { get; set; }
+        public string StripePaymentIntentId { get; set; }
+        //public string StripeClientSecret { get; set; }
+        public OrderStatus OrderStatus { get; set; } = OrderStatus.Pending;
+        public bool IsPaid { get; set; }
         public ICollection<HandiCraft> HandiCrafts { get; set; } = new List<HandiCraft>();
+        public ICollection<OrderItem> OrderItems { get; set; } = new List<OrderItem>();
     }
+
 }

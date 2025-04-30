@@ -15,5 +15,6 @@ namespace OurHeritage.Repo.Repositories.Interfaces
         Task<T> FindAsync(Expression<Func<T, bool>> predicate);
         Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);
         Task<IReadOnlyList<T>> GetAllPredicated(Expression<Func<T, bool>> predicate, string[] includes);
+
     }
 }

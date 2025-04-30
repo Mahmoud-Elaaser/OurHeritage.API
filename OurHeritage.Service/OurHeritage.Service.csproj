@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.12" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.12" />
     <PackageReference Include="MimeKit" Version="4.9.0" />
+    <PackageReference Include="Stripe.net" Version="48.0.2" />
   </ItemGroup>
 
   <ItemGroup>

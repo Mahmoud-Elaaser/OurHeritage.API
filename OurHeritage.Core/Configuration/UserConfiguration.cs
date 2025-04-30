@@ -18,6 +18,7 @@ namespace OurHeritage.Core.Configuration
                 .WithOne(l => l.User)
                 .HasForeignKey(l => l.UserId);
 
+
         }
     }
 }

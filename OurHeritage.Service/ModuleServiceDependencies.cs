@@ -22,6 +22,10 @@ namespace OurHeritage.Service
             services.AddTransient<IPaginationService, PaginationService>();
             services.AddTransient<IStoryService, StoryService>();
             services.AddScoped<IUserHandicraftMatchingService, UserHandicraftMatchingService>();
+            services.AddScoped<IBasketService, BasketService>();
+            services.AddScoped<IOrderService, OrderService>();
+            services.AddScoped<IPaymentService, StripePaymentService>();
+
 
             services.AddMemoryCache();
             services.AddSignalR();
