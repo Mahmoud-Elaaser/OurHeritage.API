@@ -310,7 +310,276 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
+        public async Task<ResponseDto> AddUserSkillAsync(int userId, string skill)
+        {
+            if (string.IsNullOrWhiteSpace(skill))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Skill name is required"
+                };
+            }
 
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+
+            if (user.Skills == null)
+            {
+                user.Skills = new List<string>();
+            }
+
+            // Check if skill already exists (case-insensitive comparison)
+            if (user.Skills.Any(s => s.Equals(skill, StringComparison.OrdinalIgnoreCase)))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "User already has this skill"
+                };
+            }
+
+
+            user.Skills.Add(skill);
+            _unitOfWork.Repository<User>().Update(user);
+            await _unitOfWork.CompleteAsync();
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 201,
+                Model = skill,
+                Message = "Skill added successfully"
+            };
+        }
+
+
+        public async Task<ResponseDto> UpdateUserSkillAsync(int userId, string oldSkill, string newSkill)
+        {
+            if (string.IsNullOrWhiteSpace(oldSkill) || string.IsNullOrWhiteSpace(newSkill))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Both old and new skill names are required"
+                };
+            }
+
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+
+            if (user.Skills == null || !user.Skills.Any())
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User has no skills"
+                };
+            }
+
+            // Find the index of the skill to update (case-insensitive comparison)
+            int skillIndex = user.Skills.FindIndex(s => s.Equals(oldSkill, StringComparison.OrdinalIgnoreCase));
+            if (skillIndex == -1)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "Skill not found"
+                };
+            }
+
+            // Check if new skill already exists
+            if (user.Skills.Any(s => s.Equals(newSkill, StringComparison.OrdinalIgnoreCase) && !s.Equals(oldSkill, StringComparison.OrdinalIgnoreCase)))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "New skill name already exists for this user"
+                };
+            }
+
+            // Update skill
+            user.Skills[skillIndex] = newSkill;
+            _unitOfWork.Repository<User>().Update(user);
+            await _unitOfWork.CompleteAsync();
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Model = newSkill,
+                Message = "Skill updated successfully"
+            };
+        }
+
+
+        public async Task<ResponseDto> RemoveUserSkillAsync(int userId, string skill)
+        {
+            if (string.IsNullOrWhiteSpace(skill))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Skill name is required"
+                };
+            }
+
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+            // Check if user has skills
+            if (user.Skills == null || !user.Skills.Any())
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User has no skills"
+                };
+            }
+
+            // Try to remove the skill (case-insensitive comparison)
+            bool removed = false;
+            for (int i = user.Skills.Count - 1; i >= 0; i--)
+            {
+                if (user.Skills[i].Equals(skill, StringComparison.OrdinalIgnoreCase))
+                {
+                    user.Skills.RemoveAt(i);
+                    removed = true;
+                    break;
+                }
+            }
+
+            if (!removed)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "Skill not found"
+                };
+            }
+
+            _unitOfWork.Repository<User>().Update(user);
+            await _unitOfWork.CompleteAsync();
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Message = "Skill removed successfully"
+            };
+        }
+
+
+        public async Task<ResponseDto> GetUserSkillsAsync(int userId)
+        {
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+
+            if (user.Skills == null || !user.Skills.Any())
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = true,
+                    Status = 200,
+                    Models = new List<string>(),
+                    Message = "User has no skills"
+                };
+            }
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Models = user.Skills,
+                Message = $"Found {user.Skills.Count} skills"
+            };
+        }
+
+
+        public async Task<ResponseDto> GetUsersBySkillAsync(string skill)
+        {
+            if (string.IsNullOrWhiteSpace(skill))
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 400,
+                    Message = "Skill name is required"
+                };
+            }
+
+            var allUsers = await _unitOfWork.Repository<User>().ListAllAsync();
+
+            // Filter users who have the specified skill (case-insensitive comparison)
+            var usersWithSkill = allUsers
+                .Where(u => u.Skills != null && u.Skills.Any(s => s.Contains(skill, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            if (!usersWithSkill.Any())
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = true,
+                    Status = 200,
+                    Models = Enumerable.Empty<GetUserDto>(),
+                    Message = "No users found with this skill"
+                };
+            }
+
+            var userDtos = _mapper.Map<IEnumerable<GetUserDto>>(usersWithSkill);
+
+            return new ResponseDto
+            {
+                IsSucceeded = true,
+                Status = 200,
+                Models = userDtos,
+                Message = $"Found {userDtos.Count()} users with skill '{skill}'"
+            };
+        }
 
     }
 

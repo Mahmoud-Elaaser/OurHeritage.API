@@ -120,5 +120,92 @@ namespace OurHeritage.API.Controllers
         }
 
 
+        [HttpGet("{id}/skills")]
+        public async Task<IActionResult> GetUserSkills(int id)
+        {
+            var response = await _userService.GetUserSkillsAsync(id);
+            if (!response.IsSucceeded)
+            {
+                return StatusCode(response.Status, new ApiResponse(response.Status, response.Message));
+            }
+            return Ok(response.Models);
+        }
+
+        [HttpGet("me/skills")]
+        public async Task<IActionResult> GetMySkills()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+            var response = await _userService.GetUserSkillsAsync(userId);
+            if (!response.IsSucceeded)
+            {
+                return StatusCode(response.Status, new ApiResponse(response.Status, response.Message));
+            }
+            return Ok(response.Models);
+        }
+
+        /// Add a skill to the current user
+        [HttpPost("skills")]
+        public async Task<IActionResult> AddSkill([FromBody] string skill)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+            var response = await _userService.AddUserSkillAsync(userId, skill);
+            if (!response.IsSucceeded)
+            {
+                return StatusCode(response.Status, new ApiResponse(response.Status, response.Message));
+            }
+            return StatusCode(response.Status, response.Message);
+        }
+
+        [HttpPut("skills")]
+        public async Task<IActionResult> UpdateSkill([FromBody] UpdateSkillDto dto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+            var response = await _userService.UpdateUserSkillAsync(userId, dto.OldSkill, dto.NewSkill);
+            if (!response.IsSucceeded)
+            {
+                return StatusCode(response.Status, new ApiResponse(response.Status, response.Message));
+            }
+            return StatusCode(response.Status, response.Message);
+        }
+
+        [HttpDelete("skills/{skill}")]
+        public async Task<IActionResult> RemoveSkill(string skill)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized("User ID not found in token.");
+            }
+            var response = await _userService.RemoveUserSkillAsync(userId, skill);
+            if (!response.IsSucceeded)
+            {
+                return StatusCode(response.Status, new ApiResponse(response.Status, response.Message));
+            }
+            return StatusCode(response.Status, response.Message);
+        }
+
+        /// Get all users who have a specific skill
+        [HttpGet("by-skill/{skill}")]
+        public async Task<IActionResult> GetUsersBySkill(string skill)
+        {
+            var response = await _userService.GetUsersBySkillAsync(skill);
+            if (!response.IsSucceeded)
+            {
+                return StatusCode(response.Status, new ApiResponse(response.Status, response.Message));
+            }
+            return Ok(response.Models);
+        }
     }
 }
