@@ -9,6 +9,7 @@ namespace OurHeritage.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -18,6 +19,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost("register")]
+        [AllowAnonymous]
         public async Task<IActionResult> RegisterUser([FromForm] RegisterDto model)
         {
             var result = await _authService.RegisterAsync(model);
@@ -29,6 +31,7 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromForm] LoginDto model)
         {
             var result = await _authService.LoginAsync(model);
@@ -47,14 +50,14 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("assign-role")]
-        //[Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AssignRole([FromForm] RoleDto model)
         {
             var result = await _authService.AssignRoleAsync(model);
             if (!result.IsSucceeded)
                 return BadRequest(new ApiResponse(result.Status, result.Message));
 
-            return Ok(result);
+            return Ok(result.Message);
         }
 
         [HttpPost("remove-role")]
@@ -65,7 +68,7 @@ namespace OurHeritage.API.Controllers
             if (!result.IsSucceeded)
                 return BadRequest(new ApiResponse(result.Status, result.Message));
 
-            return Ok(result);
+            return Ok(result.Message);
         }
 
         [HttpPost("update-role")]
@@ -76,17 +79,18 @@ namespace OurHeritage.API.Controllers
             if (!result.IsSucceeded)
                 return BadRequest(new ApiResponse(result.Status, result.Message));
 
-            return Ok(result);
+            return Ok(result.Message);
         }
 
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromForm] ChangePasswordDto model)
         {
-            var result = await _authService.ChangePasswordAsync(model);
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var result = await _authService.ChangePasswordAsync(userIdClaim, model);
             if (!result.IsSucceeded)
                 return BadRequest(new ApiResponse(result.Status, result.Message));
 
-            return Ok(result);
+            return Ok(result.Message);
         }
 
 
@@ -96,7 +100,7 @@ namespace OurHeritage.API.Controllers
             var response = await _authService.ForegotPassword(dto);
             if (!response.IsSucceeded)
                 return BadRequest(new ApiResponse(response.Status, response.Message));
-            return Ok(response);
+            return Ok(response.Message);
         }
 
         [HttpPost("reset-password")]
@@ -105,7 +109,7 @@ namespace OurHeritage.API.Controllers
             var response = await _authService.ResetPassword(dto);
             if (!response.IsSucceeded)
                 return BadRequest(new ApiResponse(response.Status, response.Message));
-            return Ok(ModelState);
+            return Ok(response.Message);
         }
 
 

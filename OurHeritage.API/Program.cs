@@ -12,6 +12,7 @@ using OurHeritage.Service.DTOs;
 using OurHeritage.Service.Helper;
 using Stripe;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace OurHeritage.API
 {
@@ -49,8 +50,11 @@ namespace OurHeritage.API
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
-                    options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                    //options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+                    options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
                 });
+
+
 
 
             builder.Services.AddEndpointsApiExplorer();

@@ -262,9 +262,9 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> ChangePasswordAsync(ChangePasswordDto changePasswordDto)
+        public async Task<ResponseDto> ChangePasswordAsync(string userId, ChangePasswordDto changePasswordDto)
         {
-            var user = await _userManager.FindByIdAsync(changePasswordDto.UserId.ToString());
+            var user = await _userManager.FindByIdAsync(userId);
             if (user == null)
             {
                 return new ResponseDto
@@ -334,7 +334,10 @@ namespace OurHeritage.Service.Implementations
         /// This function for forgot-password it takes an email and sends otp code for this email
         public async Task<ResponseDto> ForegotPassword(ForgotPasswordDto dto)
         {
-            var user = await _userManager.FindByEmailAsync(dto.Email);
+            var normalizedEmail = dto.Email.Trim().ToLower();
+
+            //// !! FindByNameAsync 
+            var user = await _userManager.FindByNameAsync(normalizedEmail);
             if (user == null)
             {
                 return new ResponseDto
@@ -373,7 +376,9 @@ namespace OurHeritage.Service.Implementations
                 return response;
             }
 
-            var user = await _userManager.FindByEmailAsync(dto.Email);
+            var normalizedEmail = dto.Email.Trim().ToLower();
+            //// !! FindByNameAsync 
+            var user = await _userManager.FindByNameAsync(normalizedEmail);
             if (user != null)
             {
                 var hashPassword = _userManager.PasswordHasher.HashPassword(user, dto.NewPassword);

@@ -10,7 +10,7 @@ namespace OurHeritage.Service.Interfaces
         Task<ResponseDto> AssignRoleAsync(RoleDto dto);
         Task<ResponseDto> RemoveRoleAsync(RoleDto dto);
         Task<ResponseDto> UpdateRoleAsync(RoleDto updateRoleDto);
-        Task<ResponseDto> ChangePasswordAsync(ChangePasswordDto changePasswordDto);
+        Task<ResponseDto> ChangePasswordAsync(string userId, ChangePasswordDto changePasswordDto);
         Task<TokenDto> GenerateJwtTokenAsync(User user);
         Task SignOutAsync();
 
