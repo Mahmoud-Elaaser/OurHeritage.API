@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
@@ -15,12 +16,14 @@ namespace OurHeritage.Service.Implementations
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly ICulturalArticleRepository _articleRepository;
+        private readonly ApplicationDbContext _context;
 
-        public CulturalArticleService(IUnitOfWork unitOfWork, IMapper mapper, ICulturalArticleRepository articleRepository)
+        public CulturalArticleService(IUnitOfWork unitOfWork, IMapper mapper, ICulturalArticleRepository articleRepository, ApplicationDbContext context)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _articleRepository = articleRepository;
+            _context = context;
         }
 
         public async Task<GenericResponseDto<CulturalArticleStatisticsDto>> GetCulturalArticleStatisticsAsync(int culturalArticleId)
@@ -294,6 +297,9 @@ namespace OurHeritage.Service.Implementations
                     Message = "CulturalArticle not found"
                 };
             }
+
+            var likes = _context.Likes.Where(l => l.CulturalArticleId == id);
+            _context.Likes.RemoveRange(likes);
 
             _unitOfWork.Repository<CulturalArticle>().Delete(culturalArticle);
             await _unitOfWork.CompleteAsync();

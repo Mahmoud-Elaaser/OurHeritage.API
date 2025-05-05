@@ -35,6 +35,12 @@ namespace OurHeritage.Repo.Repositories.Implementations
             return await ApplySpecification(spec).CountAsync();
         }
 
+        public async Task<int> CountAsync(Expression<Func<T, bool>> predicate)
+        {
+            return await _context.Set<T>().CountAsync(predicate);
+        }
+
+
         public async Task AddAsync(T entity)
         {
             await _context.Set<T>().AddAsync(entity);

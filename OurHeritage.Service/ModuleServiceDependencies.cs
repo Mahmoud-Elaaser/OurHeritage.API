@@ -25,6 +25,7 @@ namespace OurHeritage.Service
             services.AddScoped<IBasketService, BasketService>();
             services.AddScoped<IOrderService, OrderService>();
             services.AddScoped<IPaymentService, StripePaymentService>();
+            services.AddScoped<IRepostService, RepostService>();
 
 
             services.AddMemoryCache();

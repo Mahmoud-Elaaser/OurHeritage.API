@@ -409,7 +409,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<bool> ResendOtpCode(SendOTPRequest sendOTPRequest)
         {
-            var isExist = await _userManager.FindByEmailAsync(sendOTPRequest.Email);
+            var isExist = await _userManager.FindByNameAsync(sendOTPRequest.Email);
             if (isExist == null)
             {
                 return false;
