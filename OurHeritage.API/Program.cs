@@ -45,6 +45,8 @@ namespace OurHeritage.API
             builder.Services.AddServiceDependencies();
             builder.Services.AddRepoDependencies();
             #endregion
+            builder.Services.AddSignalR();
+
             builder.WebHost.UseWebRoot("wwwroot");
 
             builder.Services.AddControllers()
@@ -111,6 +113,22 @@ namespace OurHeritage.API
                     IssuerSigningKey = new SymmetricSecurityKey(
                         Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
                     ClockSkew = TimeSpan.Zero
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"];
+
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+                        {
+                            // Read the token out of the query string
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    }
                 };
             });
             #endregion

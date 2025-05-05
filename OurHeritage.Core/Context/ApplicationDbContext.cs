@@ -26,6 +26,10 @@ namespace OurHeritage.Core.Context
         public DbSet<BasketItem> BasketItems { get; set; }
         public DbSet<OrderItem> OrderItems { get; set; }
         public DbSet<Repost> Reposts { get; set; }
+        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<Message> Messages { get; set; }
+        public DbSet<ConversationUser> ConversationUsers { get; set; }
+        public DbSet<MessageRead> MessageReads { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

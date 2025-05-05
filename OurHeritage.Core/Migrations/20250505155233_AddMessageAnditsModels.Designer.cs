@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using OurHeritage.Core.Context;
 
@@ -11,9 +12,11 @@ using OurHeritage.Core.Context;
 namespace OurHeritage.Core.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250505155233_AddMessageAnditsModels")]
+    partial class AddMessageAnditsModels
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -479,9 +482,6 @@ namespace OurHeritage.Core.Migrations
                     b.Property<bool>("IsRead")
                         .HasColumnType("bit");
 
-                    b.Property<int?>("ReplyToMessageId")
-                        .HasColumnType("int");
-
                     b.Property<int>("SenderId")
                         .HasColumnType("int");
 
@@ -494,8 +494,6 @@ namespace OurHeritage.Core.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ConversationId");
-
-                    b.HasIndex("ReplyToMessageId");
 
                     b.HasIndex("SenderId");
 
@@ -1001,11 +999,6 @@ namespace OurHeritage.Core.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("OurHeritage.Core.Entities.Message", "ReplyToMessage")
-                        .WithMany("Replies")
-                        .HasForeignKey("ReplyToMessageId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("OurHeritage.Core.Entities.User", "Sender")
                         .WithMany()
                         .HasForeignKey("SenderId")
@@ -1013,8 +1006,6 @@ namespace OurHeritage.Core.Migrations
                         .IsRequired();
 
                     b.Navigation("Conversation");
-
-                    b.Navigation("ReplyToMessage");
 
                     b.Navigation("Sender");
                 });
@@ -1131,8 +1122,6 @@ namespace OurHeritage.Core.Migrations
             modelBuilder.Entity("OurHeritage.Core.Entities.Message", b =>
                 {
                     b.Navigation("ReadByUsers");
-
-                    b.Navigation("Replies");
                 });
 
             modelBuilder.Entity("OurHeritage.Core.Entities.Order", b =>
