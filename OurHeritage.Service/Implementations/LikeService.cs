@@ -17,12 +17,14 @@ namespace OurHeritage.Service.Implementations
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly INotificationService _notificationService;
 
-        public LikeService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext)
+        public LikeService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _hubContext = hubContext;
+            _notificationService = notificationService;
         }
 
 
@@ -116,18 +118,44 @@ namespace OurHeritage.Service.Implementations
             await _unitOfWork.Repository<Like>().AddAsync(like);
             await _unitOfWork.CompleteAsync();
 
-            // SignalR Notification
             var article = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(addLikeDto.CulturalArticleId);
-            await _hubContext.Clients.User(article.UserId.ToString()).SendAsync("ReceiveNotification", $"User with id: {addLikeDto.UserId} liked your article");
+            var likingUser = await _unitOfWork.Repository<User>().GetByIdAsync(addLikeDto.UserId);
+            var articleAuthor = await _unitOfWork.Repository<User>().GetByIdAsync(article.UserId);
 
-            var mappedLike = _mapper.Map<CreateLikeDto>(like);
+            if (article == null || likingUser == null || articleAuthor == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Message = "Invalid user or article data."
+                };
+            }
+
+            // Create notification message
+            string notificationMessage = $"{likingUser.FirstName} {likingUser.LastName} liked your article {article.Title}";
+
+            // Save notification
+            var notificationResult = await _notificationService.CreateArticleLikeNotificationAsync(
+                actorId: addLikeDto.UserId,
+                articleId: article.Id,
+                message: notificationMessage);
+
+            // Send real-time notification via SignalR
+            await _hubContext.Clients.User(addLikeDto.UserId.ToString())
+                .SendAsync("NotifyArticleLiked", addLikeDto.CulturalArticleId, notificationMessage);
+
             return new ResponseDto
             {
                 IsSucceeded = true,
-                Message = "Like created successfully",
-                Model = mappedLike
+                Message = "Like created successfully.",
+                Model = new
+                {
+                    Like = like,
+                    Notification = notificationResult.Success ? notificationResult.Data : null
+                }
             };
         }
+
 
         public async Task<ResponseDto> RemoveLikeAsync(int culturalArticleId, int userId)
         {

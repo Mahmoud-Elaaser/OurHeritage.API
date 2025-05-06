@@ -16,12 +16,14 @@ namespace OurHeritage.Service.Implementations
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly INotificationService _notificationService;
 
-        public CommentService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext)
+        public CommentService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _hubContext = hubContext;
+            _notificationService = notificationService;
         }
 
         public async Task<ResponseDto> GetAllCommentsAsync()
@@ -91,42 +93,62 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> AddCommentAsync(CreateOrUpdateCommentDto createCommentDto)
         {
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(createCommentDto.UserId);
+            var article = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(createCommentDto.CulturalArticleId);
+
+            if (user == null || article == null)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Message = "User or article not found.",
+                    Status = 404
+                };
+            }
+
             var comment = _mapper.Map<Comment>(createCommentDto);
             comment.DateCreated = DateTime.UtcNow;
 
             await _unitOfWork.Repository<Comment>().AddAsync(comment);
             await _unitOfWork.CompleteAsync();
 
-            // SignalR Notification
-            var article = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(createCommentDto.CulturalArticleId);
-            await _hubContext.Clients.User(article.UserId.ToString()).SendAsync("ReceiveNotification", $"User with id: {createCommentDto.UserId} commented on your article");
 
-            // Get the user information to include in the response
-            
-              var user = await _unitOfWork.Repository<User>().GetByIdAsync(createCommentDto.UserId);
-            
+
+            // Create notification message
+            string notificationMessage = $"{user.FirstName} {user.LastName} commented on your article";
+
+            // Create notification in DB
+            var notificationResult = await _notificationService.CreateArticleCommentNotificationAsync(
+                actorId: createCommentDto.UserId,
+                articleId: article.Id,
+                message: notificationMessage);
+
+            // Send real-time SignalR notification
+            //await _hubContext.Clients
+            //    .User(article.UserId.ToString())
+            //    .SendAsync("ReceiveNotification", notificationMessage);
+
+            await _hubContext.Clients.User(createCommentDto.UserId.ToString())
+                .SendAsync("NotifyArticleCommented", createCommentDto.CulturalArticleId, notificationMessage);
+
+            // Map response DTO
             var mappedComment = _mapper.Map<GetCommentDto>(comment);
-
-            // Set user information
-            if (user != null)
-            {
-                mappedComment.NameOfUser = $"{user.FirstName} {user.LastName}";
-                mappedComment.UserProfilePicture = user.ProfilePicture ?? "default.jpg";
-            }
-            else
-            {
-                mappedComment.NameOfUser = "Unknown User";
-                mappedComment.UserProfilePicture = "default.jpg";
-            }
+            mappedComment.NameOfUser = $"{user.FirstName} {user.LastName}";
+            mappedComment.UserProfilePicture = user.ProfilePicture ?? "default.jpg";
 
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Status = 201,
-                Model = mappedComment,
-                Message = "Comment created successfully."
+                Message = "Comment created successfully.",
+                Model = new
+                {
+                    Comment = mappedComment,
+                    Notification = notificationResult.Success ? notificationResult.Data : null
+                }
             };
         }
+
 
         public async Task<ResponseDto> UpdateCommentAsync(int id, CreateOrUpdateCommentDto updateCommentDto)
         {

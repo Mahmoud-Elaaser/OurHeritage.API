@@ -30,6 +30,7 @@ namespace OurHeritage.Core.Context
         public DbSet<Message> Messages { get; set; }
         public DbSet<ConversationUser> ConversationUsers { get; set; }
         public DbSet<MessageRead> MessageReads { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

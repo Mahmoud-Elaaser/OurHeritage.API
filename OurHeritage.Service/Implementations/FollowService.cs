@@ -15,12 +15,14 @@ namespace OurHeritage.Service.Implementations
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly INotificationService _notificationService;
 
-        public FollowService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext)
+        public FollowService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _hubContext = hubContext;
+            _notificationService = notificationService;
         }
 
 
@@ -53,17 +55,33 @@ namespace OurHeritage.Service.Implementations
             }
 
             var follow = _mapper.Map<Follow>(createFollowDto);
-
             await _unitOfWork.Repository<Follow>().AddAsync(follow);
             await _unitOfWork.CompleteAsync();
 
-            // SignalR Notification
-            await _hubContext.Clients.User(createFollowDto.FollowingId.ToString()).SendAsync("ReceiveNotification", $"User with id: {createFollowDto.FollowerId} followed you");
+            // Create notification using NotificationService
+            string notificationMessage = $"{follower.FirstName} {follower.LastName} started following you";
+            var notificationResult = await _notificationService.CreateFollowNotificationAsync(
+                createFollowDto.FollowerId,
+                createFollowDto.FollowingId,
+                notificationMessage);
+
+            // Send real-time notification via SignalR
+            //await _hubContext.Clients
+            //    .User(createFollowDto.FollowingId.ToString())
+            //    .SendAsync("ReceiveNotification", notificationMessage);
+
+            await _hubContext.Clients.User(createFollowDto.FollowerId.ToString())
+                .SendAsync("NotifyUserFollowed", createFollowDto.FollowingId, notificationMessage);
 
             return new ResponseDto
             {
                 IsSucceeded = true,
-                Message = "Followed successfully."
+                Message = "Followed successfully.",
+                Model = new
+                {
+                    Follow = follow,
+                    Notification = notificationResult.Success ? notificationResult.Data : null
+                }
             };
         }
 

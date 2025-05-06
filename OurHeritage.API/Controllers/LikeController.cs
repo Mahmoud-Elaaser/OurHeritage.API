@@ -48,7 +48,7 @@ namespace OurHeritage.API.Controllers
                     Status = result.Status
                 });
             }
-            return Ok(new { Message = result.Message });
+            return Ok(result.Message);
         }
 
         [HttpDelete("remove-like")]

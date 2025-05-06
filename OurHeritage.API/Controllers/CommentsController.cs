@@ -78,7 +78,7 @@ namespace OurHeritage.API.Controllers
             {
                 return BadRequest(new ApiResponse(response.Status, response.Message));
             }
-            return Ok(response);
+            return Ok(response.Message);
         }
 
         [HttpPut("{id}")]

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using OurHeritage.API.Hubs;
 using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo;
@@ -45,7 +46,10 @@ namespace OurHeritage.API
             builder.Services.AddServiceDependencies();
             builder.Services.AddRepoDependencies();
             #endregion
+
+
             builder.Services.AddSignalR();
+
 
             builder.WebHost.UseWebRoot("wwwroot");
 
@@ -63,7 +67,6 @@ namespace OurHeritage.API
             builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
             builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
             FilesSetting.Configure(builder.Services.BuildServiceProvider().GetRequiredService<IHttpContextAccessor>(), builder.Configuration);
-
 
 
 
@@ -120,16 +123,19 @@ namespace OurHeritage.API
                     OnMessageReceived = context =>
                     {
                         var accessToken = context.Request.Query["access_token"];
-
                         var path = context.HttpContext.Request.Path;
-                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+
+                        // Allow JWT token for SignalR NotificationHub as well
+                        if (!string.IsNullOrEmpty(accessToken) &&
+                            (path.StartsWithSegments("/hubs/chat") || path.StartsWithSegments("/hubs/notification")))
                         {
-                            // Read the token out of the query string
                             context.Token = accessToken;
                         }
+
                         return Task.CompletedTask;
                     }
                 };
+
             });
             #endregion
             builder.Services.AddCors(options =>
@@ -179,6 +185,8 @@ namespace OurHeritage.API
 
 
             app.MapControllers();
+            app.MapHub<NotificationHub>("/hubs/notification");
+            app.MapHub<ChatHub>("/hubs/chat");
 
             app.Run();
         }

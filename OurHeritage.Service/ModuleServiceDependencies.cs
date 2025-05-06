@@ -27,6 +27,7 @@ namespace OurHeritage.Service
             services.AddScoped<IPaymentService, StripePaymentService>();
             services.AddScoped<IRepostService, RepostService>();
             services.AddScoped<IChatService, ChatService>();
+            services.AddScoped<INotificationService, NotificationService>();
 
 
             services.AddMemoryCache();
