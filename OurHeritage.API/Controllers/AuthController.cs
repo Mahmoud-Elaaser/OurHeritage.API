@@ -97,10 +97,21 @@ namespace OurHeritage.API.Controllers
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromForm] ForgotPasswordDto dto)
         {
-            var response = await _authService.ForegotPassword(dto);
+            var response = await _authService.ForgotPassword(dto);
             if (!response.IsSucceeded)
                 return BadRequest(new ApiResponse(response.Status, response.Message));
             return Ok(response.Message);
+        }
+
+        [HttpPost("verify-otp")]
+        public async Task<IActionResult> VerifyOtp([FromForm] VerifyOtpDto dto)
+        {
+            var response = await _authService.VerifyOtp(dto);
+            if (!response.IsSucceeded)
+                return BadRequest(new ApiResponse(response.Status, response.Message));
+
+            // Return the reset token that the frontend will need for the second step
+            return Ok(new { message = response.Message, resetToken = response.Model });
         }
 
         [HttpPost("reset-password")]
@@ -109,6 +120,7 @@ namespace OurHeritage.API.Controllers
             var response = await _authService.ResetPassword(dto);
             if (!response.IsSucceeded)
                 return BadRequest(new ApiResponse(response.Status, response.Message));
+
             return Ok(response.Message);
         }
 

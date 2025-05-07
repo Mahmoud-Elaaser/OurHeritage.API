@@ -14,7 +14,8 @@ namespace OurHeritage.Service.Interfaces
         Task<TokenDto> GenerateJwtTokenAsync(User user);
         Task SignOutAsync();
 
-        Task<ResponseDto> ForegotPassword(ForgotPasswordDto dto);
+        Task<ResponseDto> ForgotPassword(ForgotPasswordDto dto);
+        Task<ResponseDto> VerifyOtp(VerifyOtpDto dto);
         Task<ResponseDto> ResetPassword(ResetPasswordDto dto);
         Task<bool> ResendOtpCode(SendOTPRequest sendOTPRequest);
     }
