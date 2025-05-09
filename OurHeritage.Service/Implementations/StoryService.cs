@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using OurHeritage.Core.Entities;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.StoryDto;
@@ -12,11 +13,13 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IPaginationService _paginationService;
 
-        public StoryService(IUnitOfWork unitOfWork, IMapper mapper)
+        public StoryService(IUnitOfWork unitOfWork, IMapper mapper, IPaginationService paginationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _paginationService = paginationService;
         }
 
         public async Task<ResponseDto> CreateStoryAsync(CreateOrUpdateStoryDto dto)
@@ -66,18 +69,24 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> GetAllStoriesAsync()
+        public async Task<PaginationResponse<GetStoryDto>> GetAllStoriesAsync(int pageIndex = 1, int pageSize = 10)
         {
             var stories = await _unitOfWork.Repository<Story>().ListAllAsync();
 
-            var mappedStories = _mapper.Map<IEnumerable<GetStoryDto>>(stories);
-
-            return new ResponseDto
+            var specParams = new SpecParams
             {
-                IsSucceeded = true,
-                Status = 200,
-                Models = mappedStories
+                PageIndex = pageIndex,
+                PageSize = pageSize
             };
+
+            // Use PaginationService to paginate and map the stories
+            var paginatedStories = _paginationService.Paginate(
+                stories,
+                specParams,
+                story => _mapper.Map<GetStoryDto>(story)
+            );
+
+            return paginatedStories;
         }
 
         public async Task<ResponseDto> UpdateStoryAsync(int storyId, CreateOrUpdateStoryDto dto)

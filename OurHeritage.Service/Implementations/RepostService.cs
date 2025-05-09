@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.SignalR;
 using OurHeritage.Core.Entities;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.RepostDto;
@@ -13,15 +14,23 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IPaginationService _paginationService;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly INotificationService _notificationService;
 
-        public RepostService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext, INotificationService notificationService)
+        public RepostService(
+            IUnitOfWork unitOfWork,
+            IMapper mapper,
+            IHubContext<NotificationHub> hubContext,
+            INotificationService notificationService
+,
+            IPaginationService paginationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _hubContext = hubContext;
             _notificationService = notificationService;
+            _paginationService = paginationService;
         }
 
         public async Task<ResponseDto> AddRepostAsync(int userId, int culturalArticleId, string content = null)
@@ -75,21 +84,21 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> GetRepostsByCulturalArticleAsync(int culturalArticleId)
+        public async Task<PaginationResponse<GetRepostDto>> GetRepostsByCulturalArticleAsync(int culturalArticleId, int page = 1, int pageSize = 10)
         {
             var includes = new string[] { "User" };
             var reposts = await _unitOfWork.Repository<Repost>()
                 .GetAllPredicated(r => r.CulturalArticleId == culturalArticleId, includes);
 
-            var repostDtos = _mapper.Map<IEnumerable<GetRepostDto>>(reposts);
-
-            return new ResponseDto
+            var specParams = new SpecParams
             {
-                IsSucceeded = true,
-                Status = 200,
-                Message = "Reposts retrieved successfully.",
-                Models = repostDtos
+                PageIndex = page,
+                PageSize = pageSize
             };
+
+            // Use PaginationService to paginate and map
+            return _paginationService.Paginate(reposts, specParams, repost =>
+                _mapper.Map<GetRepostDto>(repost));
         }
 
         public async Task<int> CountRepostsAsync(int culturalArticleId)

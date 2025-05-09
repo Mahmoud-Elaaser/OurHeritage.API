@@ -38,10 +38,10 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllStories()
+        public async Task<IActionResult> GetAllStories([FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10)
         {
-            var result = await _storyService.GetAllStoriesAsync();
-            return Ok(result);
+            var paginatedResult = await _storyService.GetAllStoriesAsync(pageIndex, pageSize);
+            return Ok(paginatedResult);
         }
 
         [HttpPut("{id}")]

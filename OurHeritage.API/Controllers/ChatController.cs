@@ -21,7 +21,7 @@ namespace OurHeritage.API.Controllers
 
         [HttpGet("conversations")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult<PaginationResponse<ConversationDto>>> GetConversations([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<ActionResult<PaginationResponse<ConversationDto>>> GetConversations([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             int userId = GetCurrentUserId();
             var paginatedConversations = await _chatService.GetUserConversationsAsync(userId, page, pageSize);
@@ -87,7 +87,7 @@ namespace OurHeritage.API.Controllers
         [HttpGet("conversations/{id}/messages")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<PaginationResponse<MessageDto>>> GetMessages(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<ActionResult<PaginationResponse<MessageDto>>> GetMessages(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             int userId = GetCurrentUserId();
             var messages = await _chatService.GetConversationMessagesAsync(id, userId, page, pageSize);
@@ -103,7 +103,7 @@ namespace OurHeritage.API.Controllers
 
         [HttpGet("messages/all")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult<PaginationResponse<MessageDto>>> GetAllMessages([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<ActionResult<PaginationResponse<MessageDto>>> GetAllMessages([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             int userId = GetCurrentUserId();
             var paginatedMessages = await _chatService.GetAllMessagesAsync(userId, page, pageSize);
@@ -159,7 +159,7 @@ namespace OurHeritage.API.Controllers
 
         [HttpGet("unread")]
         [ProducesResponseType(StatusCodes.Status200OK)]
-        public async Task<ActionResult<object>> GetUnreadMessages([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<ActionResult<object>> GetUnreadMessages([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             int userId = GetCurrentUserId();
             var (unreadCount, paginatedUnreadMessages) = await _chatService.GetUnreadMessagesAsync(userId, page, pageSize);
@@ -172,7 +172,6 @@ namespace OurHeritage.API.Controllers
         }
 
 
-        // Helper method to extract user ID from claims
         private int GetCurrentUserId()
         {
             return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));

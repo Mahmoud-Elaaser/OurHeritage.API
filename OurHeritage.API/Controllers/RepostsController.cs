@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Service.DTOs.RepostDto;
 using OurHeritage.Service.Interfaces;
 using System.Security.Claims;
@@ -40,14 +41,13 @@ namespace OurHeritage.Api.Controllers
         }
 
         [HttpGet("get-reposts/{culturalArticleId}")]
-        public async Task<ActionResult<IEnumerable<GetRepostDto>>> GetRepostsByCulturalArticleAsync(int culturalArticleId)
+        public async Task<ActionResult<PaginationResponse<GetRepostDto>>> GetRepostsByCulturalArticleAsync(
+            int culturalArticleId,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10)
         {
-            var response = await _repostService.GetRepostsByCulturalArticleAsync(culturalArticleId);
-            if (!response.IsSucceeded)
-            {
-                return BadRequest(new ApiResponse(response.Status, response.Message));
-            }
-            return Ok(response.Models);
+            var paginatedResult = await _repostService.GetRepostsByCulturalArticleAsync(culturalArticleId, pageIndex, pageSize);
+            return Ok(paginatedResult);
         }
 
         [HttpGet("count-reposts/{culturalArticleId}")]
@@ -75,11 +75,6 @@ namespace OurHeritage.Api.Controllers
             return Ok(response.Message);
         }
 
-        [HttpGet("get-all-reposts-on-a-cultural-article")]
-        public async Task<ActionResult<IEnumerable<GetRepostDto>>> GetAllRepostsOnCulturalArticle(int culturalArticleId)
-        {
-            var response = await _repostService.GetAllRepostsOnCulturalArticleAsync(culturalArticleId);
-            return Ok(response.Models);
-        }
+
     }
 }
