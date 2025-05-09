@@ -37,7 +37,7 @@ namespace OurHeritage.API.Hubs
 
             // Get all conversations this user is part of and join those groups
             var conversations = await _chatService.GetUserConversationsAsync(userId);
-            foreach (var conversation in conversations)
+            foreach (var conversation in conversations.Items)
             {
                 await Groups.AddToGroupAsync(connectionId, $"conversation_{conversation.Id}");
             }
@@ -85,7 +85,10 @@ namespace OurHeritage.API.Hubs
                         ProfilePicture = Context.User.FindFirstValue("ProfilePicture")
                     },
                     IsRead = false,
-                    ReadBy = new List<UserPreviewDto>()
+                    ReadBy = new List<UserPreviewDto>(),
+                    // Include reply information even for regular messages (will be null)
+                    ReplyToMessageId = null,
+                    ReplyToMessage = null
                 });
 
                 // Update the conversation timestamp for all users
@@ -100,9 +103,9 @@ namespace OurHeritage.API.Hubs
 
             if (message != null)
             {
-                // Fetch the original message to include in the reply preview
-                var originalMessageList = await _chatService.GetConversationMessagesAsync(dto.ConversationId, senderId, 1, 1);
-                var originalMessage = originalMessageList?.FirstOrDefault(m => m.Id == dto.ReplyToMessageId);
+                // Fetch the original message using pagination
+                var paginatedMessages = await _chatService.GetConversationMessagesAsync(dto.ConversationId, senderId, page: 1, pageSize: 100);
+                var originalMessage = paginatedMessages.Items.FirstOrDefault(m => m.Id == dto.ReplyToMessageId);
 
                 var replyPreview = originalMessage != null ? new ReplyPreviewDto
                 {
@@ -140,10 +143,11 @@ namespace OurHeritage.API.Hubs
                     ReplyToMessage = replyPreview
                 });
 
-                // Update the conversation timestamp for all users
+                // Notify all users in the conversation to update their UI
                 await Clients.Group($"conversation_{dto.ConversationId}").SendAsync("ConversationUpdated", dto.ConversationId);
             }
         }
+
 
         public async Task JoinConversation(JoinConversationDto dto)
         {
@@ -184,13 +188,21 @@ namespace OurHeritage.API.Hubs
             await _chatService.MarkMessageAsReadAsync(messageId, userId);
 
             // Get the message to find which conversation it belongs to
-            var message = await _chatService.GetConversationMessagesAsync(0, userId, 1, 1);
-            if (message != null && message.Count > 0)
+            var messageResponse = await _chatService.GetConversationMessagesAsync(0, userId, 1, 1);
+
+            // Check if there are messages in the response
+            if (messageResponse != null && messageResponse.Items.Any())
             {
-                // Notify others that this user has read the message
-                await Clients.Group($"conversation_{message[0].ConversationId}").SendAsync("MessageRead", messageId, userId);
+                var message = messageResponse.Items.FirstOrDefault(); // Access the first message
+
+                if (message != null)
+                {
+                    // Notify others that this user has read the message
+                    await Clients.Group($"conversation_{message.ConversationId}").SendAsync("MessageRead", messageId, userId);
+                }
             }
         }
+
 
 
         private string TruncateContent(string content, int maxLength)

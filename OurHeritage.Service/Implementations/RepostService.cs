@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.SignalR;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
 using OurHeritage.Service.DTOs.RepostDto;
 using OurHeritage.Service.Interfaces;
+using OurHeritage.Service.SignalR;
 
 namespace OurHeritage.Service.Implementations
 {
@@ -11,17 +13,25 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly INotificationService _notificationService;
 
-        public RepostService(IUnitOfWork unitOfWork, IMapper mapper)
+        public RepostService(IUnitOfWork unitOfWork, IMapper mapper, IHubContext<NotificationHub> hubContext, INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _hubContext = hubContext;
+            _notificationService = notificationService;
         }
 
         public async Task<ResponseDto> AddRepostAsync(int userId, int culturalArticleId, string content = null)
         {
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            var article = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(culturalArticleId);
+
             var existingRepost = await _unitOfWork.Repository<Repost>()
                 .FindAsync(r => r.UserId == userId && r.CulturalArticleId == culturalArticleId);
+
 
             if (existingRepost != null)
             {
@@ -42,6 +52,19 @@ namespace OurHeritage.Service.Implementations
 
             await _unitOfWork.Repository<Repost>().AddAsync(repost);
             await _unitOfWork.CompleteAsync();
+
+            string notificationMessage = $"{user.FirstName} {user.LastName} reposted your article";
+
+            // Create notification in DB
+            var notificationResult = await _notificationService.CreateArticleCommentNotificationAsync(
+                actorId: userId,
+                articleId: article.Id,
+                message: notificationMessage);
+
+            // Send real-time SignalR notification
+            await _hubContext.Clients.User(userId.ToString())
+                .SendAsync("NotifyArticleCommented", culturalArticleId, notificationMessage);
+
             var mappedRepost = _mapper.Map<GetRepostDto>(repost);
             return new ResponseDto
             {

@@ -123,18 +123,40 @@ namespace OurHeritage.API.Hubs
             }
         }
 
+        public async Task NotifyArticleReposted(int articleId)
+        {
+            int reposterId = int.Parse(Context.User.FindFirstValue(ClaimTypes.NameIdentifier));
+            string reposterFirstName = Context.User.FindFirstValue(ClaimTypes.GivenName);
+            string reposterLastName = Context.User.FindFirstValue(ClaimTypes.Surname);
+
+
+            string message = $"{reposterFirstName} {reposterLastName} reposted your article";
+
+            var result = await _notificationService.CreateRepostNotificationAsync(
+                reposterId,
+                articleId,
+                message);
+
+            if (result.Success && result.Data != null && result.Data.RecipientId.HasValue)
+            {
+                await SendNotificationToUser(result.Data.RecipientId.Value, result.Data);
+            }
+        }
+
+
         public async Task<List<NotificationDto>> GetUnreadNotifications()
         {
             int userId = int.Parse(Context.User.FindFirstValue(ClaimTypes.NameIdentifier));
             var response = await _notificationService.GetUnreadNotificationsAsync(userId);
 
-            if (response.Success && response.Data != null)
+            if (response.Success && response.Data?.Items != null)
             {
-                return response.Data.Cast<NotificationDto>().ToList();
+                return response.Data.Items.ToList();
             }
 
             return new List<NotificationDto>();
         }
+
 
         public async Task<NotificationStatsDto> GetNotificationStats()
         {

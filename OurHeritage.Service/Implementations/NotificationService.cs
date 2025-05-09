@@ -16,6 +16,7 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly IPaginationService _paginationService;
         private readonly IGenericRepository<Notification> _notificationRepository;
         private readonly IGenericRepository<User> _userRepository;
         private readonly IGenericRepository<CulturalArticle> _articleRepository;
@@ -25,13 +26,15 @@ namespace OurHeritage.Service.Implementations
             IMapper mapper,
             IGenericRepository<Notification> notificationRepository,
             IGenericRepository<User> userRepository,
-            IGenericRepository<CulturalArticle> articleRepository)
+            IGenericRepository<CulturalArticle> articleRepository,
+            IPaginationService paginationService)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _notificationRepository = notificationRepository;
             _userRepository = userRepository;
             _articleRepository = articleRepository;
+            _paginationService = paginationService;
         }
 
         public async Task<GenericResponseDto<NotificationDto>> CreateFollowNotificationAsync(int actorId, int recipientId, string message)
@@ -242,23 +245,100 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<GenericResponseDto<List<NotificationDto>>> GetUnreadNotificationsAsync(int userId)
+        public async Task<GenericResponseDto<NotificationDto>> CreateRepostNotificationAsync(int actorId, int recipientId, string message)
+        {
+            // Validate users exist
+            var actor = await _userRepository.GetByIdAsync(actorId);
+            var recipient = await _userRepository.GetByIdAsync(recipientId);
+
+            if (actor == null || recipient == null)
+            {
+                return new GenericResponseDto<NotificationDto>
+                {
+                    Success = false,
+                    Message = "User not found"
+                };
+            }
+
+            // Don't notify if user reposts their own article
+            if (actorId == recipientId)
+            {
+                return new GenericResponseDto<NotificationDto>
+                {
+                    Success = false,
+                    Message = "Cannot create notification for self-repost"
+                };
+            }
+
+            var notification = new Notification
+            {
+                ActorId = actorId,
+                RecipientId = recipientId,
+                Type = NotificationType.Repost,
+                Message = message,
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false
+            };
+
+            await _notificationRepository.AddAsync(notification);
+            await _unitOfWork.CompleteAsync();
+
+            var notificationDto = new NotificationDto
+            {
+                Id = notification.Id,
+                RecipientId = notification.RecipientId,
+                ActorId = notification.ActorId,
+                Actor = new UserPreviewDto
+                {
+                    Id = actor.Id,
+                    FirstName = actor.FirstName,
+                    LastName = actor.LastName,
+                    ProfilePicture = actor.ProfilePicture
+                },
+                Type = notification.Type,
+                Message = notification.Message,
+                CreatedAt = notification.CreatedAt,
+                IsRead = notification.IsRead
+            };
+
+            return new GenericResponseDto<NotificationDto>
+            {
+                Success = true,
+                Message = "Repost notification created successfully",
+                Data = notificationDto
+            };
+        }
+
+
+
+        public async Task<GenericResponseDto<PaginationResponse<NotificationDto>>> GetUnreadNotificationsAsync(int userId, int page = 1, int pageSize = 10)
         {
             var includes = new string[] { "Actor" };
             var notifications = await _notificationRepository
                 .GetAllPredicated(n => n.RecipientId == userId && !n.IsRead, includes);
 
-            var notificationDtos = notifications.Select(MapToDto).ToList();
+            var specParams = new SpecParams
+            {
+                PageIndex = page,
+                PageSize = pageSize
+            };
 
-            return new GenericResponseDto<List<NotificationDto>>
+
+            var paginatedNotifications = _paginationService.Paginate(notifications, specParams, notification =>
+            {
+                return MapToDto(notification);
+            });
+
+            // Construct response
+            return new GenericResponseDto<PaginationResponse<NotificationDto>>
             {
                 Success = true,
-                Message = notificationDtos.Any() ? "Unread notifications retrieved successfully" : "No unread notifications found",
-                Data = notificationDtos
+                Message = paginatedNotifications.Items.Any()
+                    ? "Unread notifications retrieved successfully"
+                    : "No unread notifications found",
+                Data = paginatedNotifications
             };
         }
-
-
 
         public async Task<ResponseDto> MarkNotificationAsReadAsync(int notificationId, int userId)
         {
@@ -335,35 +415,49 @@ namespace OurHeritage.Service.Implementations
             };
         }
 
-        public async Task<ResponseDto> GetNotificationsByPredicateAsync(Expression<Func<Notification, bool>> predicate, string[] includes = null)
+        public async Task<GenericResponseDto<PaginationResponse<NotificationDto>>> GetNotificationsByPredicateAsync(
+            Expression<Func<Notification, bool>> predicate,
+            string[] includes = null,
+            int page = 1,
+            int pageSize = 10)
         {
             var notifications = await _notificationRepository.GetAllPredicated(predicate, includes);
 
             if (!notifications.Any())
             {
-                return new ResponseDto
+                return new GenericResponseDto<PaginationResponse<NotificationDto>>
                 {
-                    IsSucceeded = true,
-                    Status = 200,
-                    Models = Enumerable.Empty<NotificationDto>(),
-                    Message = "No notifications found matching criteria"
+                    Success = true,
+                    Message = "No notifications found matching criteria",
+                    Data = new PaginationResponse<NotificationDto>
+                    {
+                        PageIndex = page,
+                        PageSize = pageSize,
+                        TotalItems = 0,
+                        TotalPages = 0,
+                        Items = new List<NotificationDto>()
+                    }
                 };
             }
 
-            // Fetch actors for these notifications
+            // Fetch actors
             var actorIds = notifications.Select(n => n.ActorId).Distinct().ToList();
             var actors = await _userRepository.GetAllPredicated(u => actorIds.Contains(u.Id), includes);
 
-            var notificationDtos = notifications.Select(n => MapToDto(n, (List<User>)actors)).ToList();
+            // Apply pagination using your PaginationService
+            var specParams = new SpecParams { PageIndex = page, PageSize = pageSize };
+            var paginated = _paginationService.Paginate(notifications, specParams, notification =>
+                MapToDto(notification, (List<User>)actors)
+            );
 
-            return new ResponseDto
+            return new GenericResponseDto<PaginationResponse<NotificationDto>>
             {
-                IsSucceeded = true,
-                Status = 200,
-                Models = notificationDtos,
-                Message = "Notifications retrieved successfully"
+                Success = true,
+                Message = "Notifications retrieved successfully",
+                Data = paginated
             };
         }
+
 
 
         public async Task<ResponseDto> GetNotificationStatsAsync(int userId)

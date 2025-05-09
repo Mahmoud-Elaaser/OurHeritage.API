@@ -4,7 +4,8 @@
     {
         Follow,
         ArticleLike,
-        ArticleComment
+        ArticleComment,
+        Repost
     }
 
 }

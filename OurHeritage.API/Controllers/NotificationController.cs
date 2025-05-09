@@ -2,7 +2,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using OurHeritage.API.Hubs;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.CulturalArticleDto;
+using OurHeritage.Service.DTOs.NotificationsDto;
 using OurHeritage.Service.Interfaces;
 using System.Security.Claims;
 
@@ -25,18 +28,21 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ResponseDto>> GetUnreadNotifications()
+        public async Task<ActionResult<GenericResponseDto<PaginationResponse<NotificationDto>>>> GetUnreadNotifications(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 10)
         {
             int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var response = await _notificationService.GetUnreadNotificationsAsync(userId);
+            var response = await _notificationService.GetUnreadNotificationsAsync(userId, page, pageSize);
 
             if (!response.Success)
             {
-                return StatusCode(400, response);
+                return BadRequest(response);
             }
 
             return Ok(response);
         }
+
 
         [HttpGet("stats")]
         public async Task<ActionResult<ResponseDto>> GetNotificationStats()
@@ -51,6 +57,7 @@ namespace OurHeritage.API.Controllers
 
             return Ok(response);
         }
+
 
         [HttpPut("{id}/read")]
         public async Task<ActionResult<ResponseDto>> MarkAsRead(int id)

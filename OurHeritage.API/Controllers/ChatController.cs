@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OurHeritage.Core.Specifications;
 using OurHeritage.Service.DTOs.ChatDto;
 using OurHeritage.Service.Interfaces;
 using System.Security.Claims;
@@ -19,62 +20,32 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet("conversations")]
-        public async Task<IActionResult> GetConversations()
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<PaginationResponse<ConversationDto>>> GetConversations([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var conversations = await _chatService.GetUserConversationsAsync(userId);
-
-            // Map to DTOs
-            var conversationDtos = conversations.Select(c => new ConversationDto
-            {
-                Id = c.Id,
-                Title = c.IsGroup ? c.Title : c.Participants.FirstOrDefault(p => p.UserId != userId)?.User.FirstName + " " + c.Participants.FirstOrDefault(p => p.UserId != userId)?.User.LastName,
-                CreatedAt = c.CreatedAt,
-                UpdatedAt = c.UpdatedAt,
-                IsGroup = c.IsGroup,
-                Participants = c.Participants.Select(p => new UserPreviewDto
-                {
-                    Id = p.User.Id,
-                    FirstName = p.User.FirstName,
-                    LastName = p.User.LastName,
-                    ProfilePicture = p.User.ProfilePicture
-                }).ToList(),
-                LastMessage = c.Messages.Any() ? new MessageDto
-                {
-                    Id = c.Messages.First().Id,
-                    ConversationId = c.Messages.First().ConversationId,
-                    Content = c.Messages.First().Content,
-                    SentAt = c.Messages.First().SentAt,
-                    Type = c.Messages.First().Type,
-                    Attachment = c.Messages.First().Attachment,
-                    Sender = new UserPreviewDto
-                    {
-                        Id = c.Messages.First().Sender.Id,
-                        FirstName = c.Messages.First().Sender.FirstName,
-                        LastName = c.Messages.First().Sender.LastName,
-                        ProfilePicture = c.Messages.First().Sender.ProfilePicture
-                    },
-                    IsRead = c.Messages.First().ReadByUsers.Any(r => r.UserId == userId) || c.Messages.First().SenderId == userId
-                } : null,
-                UnreadCount = c.Messages.Count(m => !m.ReadByUsers.Any(r => r.UserId == userId) && m.SenderId != userId)
-            }).ToList();
-
-            return Ok(conversationDtos);
+            int userId = GetCurrentUserId();
+            var paginatedConversations = await _chatService.GetUserConversationsAsync(userId, page, pageSize);
+            return Ok(paginatedConversations);
         }
 
-        [HttpPost("conversations")]
-        public async Task<IActionResult> CreateConversation(CreateConversationDto dto)
-        {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var conversation = await _chatService.CreateConversationAsync(dto, userId);
 
+        [HttpPost("conversations")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<object>> CreateConversation(CreateConversationDto dto)
+        {
+            int userId = GetCurrentUserId();
+            var conversation = await _chatService.CreateConversationAsync(dto, userId);
             return Ok(new { conversationId = conversation.Id });
         }
 
+
         [HttpPost("conversations/join")]
-        public async Task<IActionResult> JoinConversation(JoinConversationDto dto)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<object>> JoinConversation(JoinConversationDto dto)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = GetCurrentUserId();
             var conversationUser = await _chatService.JoinConversationAsync(dto.ConversationId, userId);
 
             if (conversationUser == null)
@@ -89,10 +60,13 @@ namespace OurHeritage.API.Controllers
             });
         }
 
+
         [HttpGet("conversations/{id}")]
-        public async Task<IActionResult> GetConversation(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<ConversationDto>> GetConversation(int id)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = GetCurrentUserId();
             var conversation = await _chatService.GetConversationByIdAsync(id, userId);
 
             if (conversation == null)
@@ -103,32 +77,19 @@ namespace OurHeritage.API.Controllers
             // Mark all messages as read
             await _chatService.MarkAllMessagesAsReadAsync(id, userId);
 
-            var conversationDto = new ConversationDto
-            {
-                Id = conversation.Id,
-                Title = conversation.IsGroup ? conversation.Title : conversation.Participants.FirstOrDefault(p => p.UserId != userId)?.User.FirstName + " " + conversation.Participants.FirstOrDefault(p => p.UserId != userId)?.User.LastName,
-                CreatedAt = conversation.CreatedAt,
-                UpdatedAt = conversation.UpdatedAt,
-                IsGroup = conversation.IsGroup,
-                Participants = conversation.Participants.Select(p => new UserPreviewDto
-                {
-                    Id = p.User.Id,
-                    FirstName = p.User.FirstName,
-                    LastName = p.User.LastName,
-                    ProfilePicture = p.User.ProfilePicture
-                }).ToList(),
-                UnreadCount = 0
-            };
+            // Reset unread count as we've marked everything as read
+            conversation.UnreadCount = 0;
 
-            return Ok(conversationDto);
+            return Ok(conversation);
         }
 
 
-
         [HttpGet("conversations/{id}/messages")]
-        public async Task<IActionResult> GetMessages(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<PaginationResponse<MessageDto>>> GetMessages(int id, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = GetCurrentUserId();
             var messages = await _chatService.GetConversationMessagesAsync(id, userId, page, pageSize);
 
             if (messages == null)
@@ -136,52 +97,27 @@ namespace OurHeritage.API.Controllers
                 return NotFound();
             }
 
-            var messageDtos = messages.Select(m => new MessageDto
-            {
-                Id = m.Id,
-                ConversationId = m.ConversationId,
-                Content = m.Content,
-                SentAt = m.SentAt,
-                Type = m.Type,
-                Attachment = m.Attachment,
-                Sender = new UserPreviewDto
-                {
-                    Id = m.Sender.Id,
-                    FirstName = m.Sender.FirstName,
-                    LastName = m.Sender.LastName,
-                    ProfilePicture = m.Sender.ProfilePicture
-                },
-                IsRead = m.ReadByUsers.Any(r => r.UserId == userId) || m.SenderId == userId,
-                ReadBy = m.ReadByUsers.Select(r => new UserPreviewDto
-                {
-                    Id = r.User.Id,
-                    FirstName = r.User.FirstName,
-                    LastName = r.User.LastName,
-                    ProfilePicture = r.User.ProfilePicture
-                }).ToList(),
-                // Include reply information
-                ReplyToMessageId = m.ReplyToMessageId,
-                ReplyToMessage = m.ReplyToMessage != null ? new ReplyPreviewDto
-                {
-                    Id = m.ReplyToMessage.Id,
-                    Content = m.ReplyToMessage.Content,
-                    Type = m.ReplyToMessage.Type,
-                    Sender = m.ReplyToMessage.Sender != null ? new UserPreviewDto
-                    {
-                        Id = m.ReplyToMessage.Sender.Id,
-                        FirstName = m.ReplyToMessage.Sender.FirstName,
-                        LastName = m.ReplyToMessage.Sender.LastName,
-                        ProfilePicture = m.ReplyToMessage.Sender.ProfilePicture
-                    } : null
-                } : null
-            }).ToList();
-
-            return Ok(messageDtos);
+            return Ok(messages);
         }
-        [HttpPost("messages")]
-        public async Task<IActionResult> SendMessage(SendMessageDto dto)
+
+
+        [HttpGet("messages/all")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<PaginationResponse<MessageDto>>> GetAllMessages([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = GetCurrentUserId();
+            var paginatedMessages = await _chatService.GetAllMessagesAsync(userId, page, pageSize);
+            return Ok(paginatedMessages);
+        }
+
+
+
+        [HttpPost("messages")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<object>> SendMessage(SendMessageDto dto)
+        {
+            int userId = GetCurrentUserId();
             var message = await _chatService.SendMessageAsync(dto, userId);
 
             if (message == null)
@@ -194,9 +130,11 @@ namespace OurHeritage.API.Controllers
 
 
         [HttpPost("messages/reply")]
-        public async Task<IActionResult> ReplyToMessage(ReplyMessageDto dto)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<object>> ReplyToMessage(ReplyMessageDto dto)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = GetCurrentUserId();
             var message = await _chatService.ReplyToMessageAsync(dto, userId);
 
             if (message == null)
@@ -207,69 +145,37 @@ namespace OurHeritage.API.Controllers
             return Ok(new { messageId = message.Id });
         }
 
+
         [HttpPost("messages/{id}/read")]
-        public async Task<IActionResult> MarkAsRead(int id)
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<string>> MarkAsRead(int id)
         {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = GetCurrentUserId();
             await _chatService.MarkMessageAsReadAsync(id, userId);
 
             return Ok("Message has been marked as read");
         }
 
-        [HttpGet("unread")]
-        public async Task<IActionResult> GetUnreadMessages()
-        {
-            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
-            var (unreadCount, unreadMessages) = await _chatService.GetUnreadMessagesAsync(userId);
 
-            // Map to DTOs with ReadBy information and reply information
-            var messageDtos = unreadMessages.Select(m => new MessageDto
-            {
-                Id = m.Id,
-                ConversationId = m.ConversationId,
-                Content = m.Content,
-                SentAt = m.SentAt,
-                Type = m.Type,
-                Attachment = m.Attachment,
-                Sender = new UserPreviewDto
-                {
-                    Id = m.Sender.Id,
-                    FirstName = m.Sender.FirstName,
-                    LastName = m.Sender.LastName,
-                    ProfilePicture = m.Sender.ProfilePicture
-                },
-                IsRead = false, // We know they're all unread for the current user
-                ReadBy = m.ReadByUsers.Select(r => new UserPreviewDto // Get all users who have read this message
-                {
-                    Id = r.User.Id,
-                    FirstName = r.User.FirstName,
-                    LastName = r.User.LastName,
-                    ProfilePicture = r.User.ProfilePicture
-                }).ToList(),
-                // Include reply information
-                ReplyToMessageId = m.ReplyToMessageId,
-                ReplyToMessage = m.ReplyToMessage != null ? new ReplyPreviewDto
-                {
-                    Id = m.ReplyToMessage.Id,
-                    Content = m.ReplyToMessage.Content,
-                    Type = m.ReplyToMessage.Type,
-                    Sender = m.ReplyToMessage.Sender != null ? new UserPreviewDto
-                    {
-                        Id = m.ReplyToMessage.Sender.Id,
-                        FirstName = m.ReplyToMessage.Sender.FirstName,
-                        LastName = m.ReplyToMessage.Sender.LastName,
-                        ProfilePicture = m.ReplyToMessage.Sender.ProfilePicture
-                    } : null
-                } : null
-            }).ToList();
+        [HttpGet("unread")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        public async Task<ActionResult<object>> GetUnreadMessages([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            int userId = GetCurrentUserId();
+            var (unreadCount, paginatedUnreadMessages) = await _chatService.GetUnreadMessagesAsync(userId, page, pageSize);
 
             return Ok(new
             {
                 unreadCount,
-                unreadMessages = messageDtos
+                unreadMessages = paginatedUnreadMessages
             });
         }
 
 
+        // Helper method to extract user ID from claims
+        private int GetCurrentUserId()
+        {
+            return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier));
+        }
     }
 }
