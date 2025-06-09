@@ -103,16 +103,7 @@ namespace OurHeritage.API.Controllers
             return Ok(response.Message);
         }
 
-        [HttpPost("verify-otp")]
-        public async Task<IActionResult> VerifyOtp([FromForm] VerifyOtpDto dto)
-        {
-            var response = await _authService.VerifyOtp(dto);
-            if (!response.IsSucceeded)
-                return BadRequest(new ApiResponse(response.Status, response.Message));
 
-            // Return the reset token that the frontend will need for the second step
-            return Ok(new { message = response.Message, resetToken = response.Model });
-        }
 
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromForm] ResetPasswordDto dto)

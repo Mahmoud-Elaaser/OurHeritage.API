@@ -37,7 +37,7 @@ namespace OurHeritage.Api.Controllers
             {
                 return BadRequest(new ApiResponse(response.Status, response.Message));
             }
-            return Ok(response.Message);
+            return Ok(response.Model);
         }
 
         [HttpGet("get-reposts/{culturalArticleId}")]

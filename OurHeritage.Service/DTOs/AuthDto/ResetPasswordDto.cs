@@ -5,7 +5,7 @@ namespace OurHeritage.Service.DTOs.AuthDto
     public class ResetPasswordDto
     {
         [Required]
-        public string ResetToken { get; set; }
+        public string OtpCode { get; set; }
 
         [Required]
         [DataType(DataType.Password)]

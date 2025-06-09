@@ -25,7 +25,7 @@ namespace OurHeritage.Service.Implementations
         private readonly IEmailService _emailService;
         private readonly IMemoryCache _memoryCache;
         private readonly ILogger<AuthService> _logger;
-        private static ConcurrentDictionary<string, string> OtpStorage = new ConcurrentDictionary<string, string>(); /// for otp code
+        private static ConcurrentDictionary<string, OtpData> OtpStorage = new ConcurrentDictionary<string, OtpData>(); /// for otp code
 
         public AuthService(UserManager<User> userManager,
                            RoleManager<IdentityRole<int>> roleManager,
@@ -109,7 +109,6 @@ namespace OurHeritage.Service.Implementations
 
             var normalizedEmail = loginDto.Email.Trim().ToLower();
 
-            //// !! FindByNameAsync 
             var user = await _userManager.FindByNameAsync(normalizedEmail);
 
             if (user == null)
@@ -331,129 +330,107 @@ namespace OurHeritage.Service.Implementations
 
 
 
-        /// This function for forgot-password it takes an email and sends otp code for this email
         public async Task<ResponseDto> ForgotPassword(ForgotPasswordDto dto)
-        {
-            // Normalize email for consistent lookup
-            var normalizedEmail = dto.Email.Trim().ToLower();
-
-            // Find user by normalized email
-            var user = await _userManager.FindByNameAsync(normalizedEmail);
-            if (user == null)
-            {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 400,
-                    Message = "Invalid email"
-                };
-            }
-
-            // Generate reset token (you might need this later for actual password reset)
-            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-
-            // Generate OTP code
-            var otpCode = GenerateOtpCode();
-
-            // Store OTP with normalized email for consistent retrieval
-            OtpStorage[normalizedEmail] = otpCode;
-
-            // Log for debugging
-            //System.Diagnostics.Debug.WriteLine($"Stored OTP for email '{normalizedEmail}': {otpCode}");
-
-            // Prepare email content
-            var subject = "Password Reset Request";
-            var body = $"Your OTP Code is: {otpCode}\n\nDon't share it with anyone.";
-
-            // Send email
-            await _emailService.SendEmailAsync(dto.Email, subject, body);
-
-            // Set expiration for OTP (optional - prevents stale OTPs)
-            SetOtpExpiration(normalizedEmail, TimeSpan.FromMinutes(10));
-
-            return new ResponseDto
-            {
-                Status = 200,
-                IsSucceeded = true,
-                Message = "We sent you an email with OTP code, please check it"
-            };
-        }
-
-
-        public async Task<ResponseDto> VerifyOtp(VerifyOtpDto dto)
         {
             var response = new ResponseDto();
 
-            // Check if OTP is valid
-            if (!OtpStorage.TryGetValue(dto.Email, out var otpStorage) || otpStorage != dto.OtpCode)
+            try
+            {
+                var normalizedEmail = dto.Email.Trim().ToLower();
+
+                var user = await _userManager.FindByNameAsync(normalizedEmail);
+                if (user == null)
+                {
+                    response.Status = 400;
+                    response.IsSucceeded = false;
+                    response.Message = "Invalid email";
+                    return response;
+                }
+
+                // Remove any existing OTP for this email 
+                CleanupOtpForEmail(normalizedEmail);
+
+                var otpCode = GenerateAndStoreOtp(normalizedEmail);
+
+                var subject = "Forgot Password Request";
+                var body = $"Your OTP Code is: {otpCode}\nDon't share it with anyone.\nThis code will expire in 10 minutes.";
+
+                await _emailService.SendEmailAsync(dto.Email, subject, body);
+
+                response.Status = 200;
+                response.IsSucceeded = true;
+                response.Message = "We sent you an email with OTP code, please check it";
+            }
+            catch (Exception ex)
+            {
+                response.Status = 500;
+                response.IsSucceeded = false;
+                response.Message = "An error occurred while processing your request";
+            }
+
+            return response;
+        }
+
+
+        public async Task<ResponseDto> ResetPassword(ResetPasswordDto dto)
+        {
+            var response = new ResponseDto();
+
+            // Check if OTP exists and is valid
+            if (!OtpStorage.TryGetValue(dto.OtpCode, out var otpData))
             {
                 response.Status = 400;
                 response.Message = "Invalid OTP code. Please try again!";
                 return response;
             }
 
-            // OTP is valid, generate a reset token (you can use a GUID or any secure token generation method)
-            var resetToken = Guid.NewGuid().ToString();
-
-            // Store email against the reset token
-            ResetTokenStorage.Tokens[resetToken] = dto.Email;
-
-            // Remove OTP as it's now used
-            OtpStorage.TryRemove(dto.Email, out _);
-
-            response.IsSucceeded = true;
-            response.Status = 200;
-            response.Message = "OTP verified successfully";
-            response.Model = resetToken; // Return the token to be used in the next step
-
-            return response;
-        }
-
-
-        /// This function for reset-password it takes otp code that has been sent to email then you can reset your password
-        public async Task<ResponseDto> ResetPassword(ResetPasswordDto dto)
-        {
-            var response = new ResponseDto();
-
-            // Validate the reset token
-            if (!ResetTokenStorage.Tokens.TryGetValue(dto.ResetToken, out var email))
+            // Check if OTP has expired
+            if (DateTime.UtcNow > otpData.ExpiryTime)
             {
+                OtpStorage.TryRemove(dto.OtpCode, out _);
                 response.Status = 400;
-                response.Message = "Invalid or expired reset token";
+                response.Message = "OTP code has expired. Please request a new one!";
                 return response;
             }
 
-            var normalizedEmail = email.Trim().ToLower();
-            var user = await _userManager.FindByNameAsync(normalizedEmail);
-
-            if (user != null)
+            // Find user by email from OTP data
+            var user = await _userManager.FindByNameAsync(otpData.Email);
+            if (user == null)
             {
-                // Reset the password
+                response.Status = 400;
+                response.Message = "Invalid user!";
+                return response;
+            }
+
+            try
+            {
                 var token = await _userManager.GeneratePasswordResetTokenAsync(user);
                 var result = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
 
                 if (result.Succeeded)
                 {
-                    // Remove the used token
-                    ResetTokenStorage.Tokens.TryRemove(dto.ResetToken, out _);
+                    // Remove used OTP
+                    OtpStorage.TryRemove(dto.OtpCode, out _);
 
                     response.IsSucceeded = true;
                     response.Status = 200;
                     response.Message = "Password has been changed successfully";
-                    return response;
                 }
                 else
                 {
                     response.Status = 400;
                     response.Message = "Failed to reset password: " + string.Join(", ", result.Errors.Select(e => e.Description));
-                    return response;
                 }
             }
+            catch (Exception ex)
+            {
+                response.Status = 500;
+                response.Message = "An error occurred while resetting password";
+            }
 
-            response.Status = 400;
-            response.Message = "Invalid User!";
             return response;
         }
+
 
         private string GenerateOtpCode()
         {
@@ -480,16 +457,51 @@ namespace OurHeritage.Service.Implementations
         }
 
 
-        private void SetOtpExpiration(string email, TimeSpan expirationTime)
+
+        // cleanup existing OTP for an email
+        private void CleanupOtpForEmail(string email)
         {
-            Task.Delay(expirationTime).ContinueWith(t =>
+            var existingOtpKeys = OtpStorage
+                .Where(kvp => kvp.Value.Email.Equals(email, StringComparison.OrdinalIgnoreCase))
+                .Select(kvp => kvp.Key)
+                .ToList();
+
+            foreach (var key in existingOtpKeys)
             {
-                // Remove OTP after expiration time
-                if (OtpStorage.TryRemove(email, out _))
-                {
-                    System.Diagnostics.Debug.WriteLine($"OTP for email '{email}' has expired and was removed");
-                }
-            });
+                OtpStorage.TryRemove(key, out _);
+            }
         }
+
+        public string GenerateAndStoreOtp(string email)
+        {
+            var random = new Random();
+            var otpCode = random.Next(100000, 999999).ToString();
+
+            // Ensure OTP is unique
+            while (OtpStorage.ContainsKey(otpCode))
+            {
+                otpCode = random.Next(100000, 999999).ToString();
+            }
+
+            var otpData = new OtpData
+            {
+                Email = email,
+                Code = otpCode,
+                ExpiryTime = DateTime.UtcNow.AddMinutes(10) // OTP expires in 10 minutes
+            };
+
+            // Store with OTP code as key
+            OtpStorage[otpCode] = otpData;
+
+            return otpCode;
+        }
+    }
+
+
+    public class OtpData
+    {
+        public string Email { get; set; }
+        public string Code { get; set; }
+        public DateTime ExpiryTime { get; set; }
     }
 }

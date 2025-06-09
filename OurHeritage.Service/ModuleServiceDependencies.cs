@@ -20,7 +20,6 @@ namespace OurHeritage.Service
             services.AddTransient<ICulturalArticleService, CulturalArticleService>();
             services.AddTransient<IFavoriteService, FavoriteService>();
             services.AddTransient<IPaginationService, PaginationService>();
-            services.AddTransient<IStoryService, StoryService>();
             services.AddScoped<IUserHandicraftMatchingService, UserHandicraftMatchingService>();
             services.AddScoped<IBasketService, BasketService>();
             services.AddScoped<IOrderService, OrderService>();
@@ -28,6 +27,7 @@ namespace OurHeritage.Service
             services.AddScoped<IRepostService, RepostService>();
             services.AddScoped<IChatService, ChatService>();
             services.AddScoped<INotificationService, NotificationService>();
+            services.AddScoped<IRecommendationService, RecommendationService>();
 
 
             services.AddMemoryCache();
