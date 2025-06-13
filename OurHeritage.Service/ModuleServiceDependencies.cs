@@ -28,6 +28,7 @@ namespace OurHeritage.Service
             services.AddScoped<IChatService, ChatService>();
             services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IRecommendationService, RecommendationService>();
+            services.AddScoped<IStatisticsService, StatisticsService>();
 
 
             services.AddMemoryCache();

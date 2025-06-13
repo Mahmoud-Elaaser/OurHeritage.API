@@ -27,7 +27,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet]
-        // [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetUserDto>>> GetAllUsers([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<User>(specParams, e =>
@@ -39,7 +39,7 @@ namespace OurHeritage.API.Controllers
                 Id = e.Id,
                 FirstName = e.FirstName,
                 LastName = e.LastName,
-                FullName = e.FirstName + e.LastName,
+                FullName = $"{e.FirstName}" + $" {e.LastName}",
                 ProfilePicture = e.ProfilePicture,
                 CoverProfilePicture = e.CoverProfilePicture,
                 Phone = e.Phone,
@@ -95,6 +95,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var response = await _userService.DeleteUserAsync(User, id);

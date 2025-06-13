@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.AspNetCore.Identity;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
@@ -14,11 +15,13 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly UserManager<User> _userManager;
 
-        public UserService(IUnitOfWork unitOfWork, IMapper mapper)
+        public UserService(UserManager<User> userManager, IUnitOfWork unitOfWork, IMapper mapper)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _userManager = userManager;
         }
 
         public async Task<ResponseDto> CreateUserAsync(CreateOrUpdateUserDto dto)
@@ -190,6 +193,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal user, int userId)
         {
+            // Extract logged-in user ID
             if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
             {
                 return new ResponseDto
@@ -200,10 +204,10 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            // Extract user role from the token
-            var loggedInUserRole = user.FindFirst(ClaimTypes.Role)?.Value;
+            // Extract role from token
+            var userRole = user.FindFirst(ClaimTypes.Role)?.Value;
 
-            var userToDelete = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            var userToDelete = await _userManager.FindByIdAsync(userId.ToString());
             if (userToDelete == null)
             {
                 return new ResponseDto
@@ -214,8 +218,7 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            // Check if the logged-in user is either an admin or deleting their own account
-            if (loggedInUserId != userId && loggedInUserRole != "Admin")
+            if (loggedInUserId != userId && userRole != "Admin")
             {
                 return new ResponseDto
                 {
@@ -225,12 +228,28 @@ namespace OurHeritage.Service.Implementations
                 };
             }
 
-            // Delete associated files
-            FilesSetting.DeleteFile(userToDelete.ProfilePicture);
-            FilesSetting.DeleteFile(userToDelete.CoverProfilePicture);
+            // Delete profile/cover picture if exists
+            if (!string.IsNullOrEmpty(userToDelete.ProfilePicture))
+                FilesSetting.DeleteFile(userToDelete.ProfilePicture);
 
-            _unitOfWork.Repository<User>().Delete(userToDelete);
-            await _unitOfWork.CompleteAsync();
+            if (!string.IsNullOrEmpty(userToDelete.CoverProfilePicture))
+                FilesSetting.DeleteFile(userToDelete.CoverProfilePicture);
+
+            // Delete roles before deleting user
+            var roles = await _userManager.GetRolesAsync(userToDelete);
+            if (roles.Any())
+                await _userManager.RemoveFromRolesAsync(userToDelete, roles);
+
+            var result = await _userManager.DeleteAsync(userToDelete);
+            if (!result.Succeeded)
+            {
+                return new ResponseDto
+                {
+                    IsSucceeded = false,
+                    Status = 500,
+                    Message = "Failed to delete the user."
+                };
+            }
 
             return new ResponseDto
             {
@@ -239,6 +258,8 @@ namespace OurHeritage.Service.Implementations
                 Message = "User deleted successfully."
             };
         }
+
+
 
 
         public async Task<ResponseDto> GetSuggestedFriendsAsync(int userId)
