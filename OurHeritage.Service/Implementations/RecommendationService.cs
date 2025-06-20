@@ -401,10 +401,6 @@ namespace OurHeritage.Service.Implementations
         private double CalculateTrendingScore(HandiCraft handicraft)
         {
             // This is a simplified trending calculation
-            // In a real implementation, you might consider:
-            // - Number of recent favorites
-            // - Number of recent orders
-            // - View count, etc.
 
             var daysSinceAdded = (DateTime.UtcNow - handicraft.DateAdded).TotalDays;
             var recencyScore = Math.Max(0, (30 - daysSinceAdded) / 30);

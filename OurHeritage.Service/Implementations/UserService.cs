@@ -1,5 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
@@ -16,12 +18,14 @@ namespace OurHeritage.Service.Implementations
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
         private readonly UserManager<User> _userManager;
+        private readonly ApplicationDbContext _context;
 
-        public UserService(UserManager<User> userManager, IUnitOfWork unitOfWork, IMapper mapper)
+        public UserService(UserManager<User> userManager, IUnitOfWork unitOfWork, IMapper mapper, ApplicationDbContext context)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
             _userManager = userManager;
+            _context = context;
         }
 
         public async Task<ResponseDto> CreateUserAsync(CreateOrUpdateUserDto dto)
@@ -191,73 +195,121 @@ namespace OurHeritage.Service.Implementations
         }
 
 
-        public async Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal user, int userId)
+        public async Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal currentUser, int userId)
         {
-            // Extract logged-in user ID
-            if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+            try
             {
+                if (!int.TryParse(currentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+                {
+                    return new ResponseDto { IsSucceeded = false, Status = 401, Message = "Secret agent ID missing - mission aborted!" };
+                }
+
+                var userRole = currentUser.FindFirst(ClaimTypes.Role)?.Value;
+                var userToDelete = await _userManager.FindByIdAsync(userId.ToString());
+
+                if (userToDelete == null)
+                {
+                    return new ResponseDto { IsSucceeded = false, Status = 404, Message = "User vanished like a ghost in the machine!" };
+                }
+
+                if (loggedInUserId != userId && userRole != "Admin")
+                {
+                    return new ResponseDto { IsSucceeded = false, Status = 403, Message = "Red alert! You're not the user or admin - aborting!" };
+                }
+
+                using var transaction = await _context.Database.BeginTransactionAsync();
+
+                // Delete OrderItems before deleting HandiCrafts
+                var userHandiCraftIds = await _context.HandiCrafts
+                    .Where(h => h.UserId == userId)
+                    .Select(h => h.Id)
+                    .ToListAsync();
+
+                var relatedOrderItems = await _context.OrderItems
+                    .Where(oi => userHandiCraftIds.Contains(oi.HandiCraftId))
+                    .ToListAsync();
+
+                _context.OrderItems.RemoveRange(relatedOrderItems);
+
+                // Delete related Orders (if no items left)
+                var relatedOrderIds = relatedOrderItems.Select(oi => oi.OrderId).Distinct().ToList();
+                var relatedOrders = await _context.Orders
+                    .Where(o => relatedOrderIds.Contains(o.Id))
+                    .ToListAsync();
+
+                _context.Orders.RemoveRange(relatedOrders);
+
+                // Delete other related data
+                await _context.Comments.Where(c => c.UserId == userId).ExecuteDeleteAsync();
+                await _context.Likes.Where(l => l.UserId == userId).ExecuteDeleteAsync();
+                await _context.Favorites.Where(f => f.UserId == userId).ExecuteDeleteAsync();
+                await _context.Reposts.Where(r => r.UserId == userId).ExecuteDeleteAsync();
+                await _context.Notifications.Where(n => n.ActorId == userId).ExecuteDeleteAsync();
+
+
+                var articles = await _context.CulturalArticles.Where(a => a.UserId == userId).ToListAsync();
+                foreach (var article in articles)
+                {
+                    await _context.Comments.Where(c => c.CulturalArticleId == article.Id).ExecuteDeleteAsync();
+                    await _context.Likes.Where(l => l.CulturalArticleId == article.Id).ExecuteDeleteAsync();
+                    await _context.Reposts.Where(r => r.CulturalArticleId == article.Id).ExecuteDeleteAsync();
+                }
+                _context.CulturalArticles.RemoveRange(articles);
+
+                // Delete HandiCrafts (after OrderItems are gone)
+                var crafts = await _context.HandiCrafts.Where(h => h.UserId == userId).ToListAsync();
+                foreach (var craft in crafts)
+                {
+                    await _context.Favorites.Where(f => f.HandiCraftId == craft.Id).ExecuteDeleteAsync();
+                }
+                _context.HandiCrafts.RemoveRange(crafts);
+
+                // File cleanup
+                if (!string.IsNullOrEmpty(userToDelete.ProfilePicture))
+                    FilesSetting.DeleteFile(userToDelete.ProfilePicture);
+
+                if (!string.IsNullOrEmpty(userToDelete.CoverProfilePicture))
+                    FilesSetting.DeleteFile(userToDelete.CoverProfilePicture);
+
+                // Remove user roles
+                var roles = await _userManager.GetRolesAsync(userToDelete);
+                if (roles.Any())
+                {
+                    await _userManager.RemoveFromRolesAsync(userToDelete, roles);
+                }
+
+                // Delete user
+                var result = await _userManager.DeleteAsync(userToDelete);
+                if (!result.Succeeded)
+                {
+                    await transaction.RollbackAsync();
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 500,
+                        Message = "Self-destruct sequence failed! " + string.Join(", ", result.Errors.Select(e => e.Description))
+                    };
+                }
+
+                await transaction.CommitAsync();
                 return new ResponseDto
                 {
-                    IsSucceeded = false,
-                    Status = 401,
-                    Message = "User ID not found in token."
+                    IsSucceeded = true,
+                    Status = 200,
+                    Message = "User and all digital traces successfully deleted!"
                 };
             }
-
-            // Extract role from token
-            var userRole = user.FindFirst(ClaimTypes.Role)?.Value;
-
-            var userToDelete = await _userManager.FindByIdAsync(userId.ToString());
-            if (userToDelete == null)
-            {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 404,
-                    Message = "User not found."
-                };
-            }
-
-            if (loggedInUserId != userId && userRole != "Admin")
-            {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 403,
-                    Message = "You do not have permission to delete this user."
-                };
-            }
-
-            // Delete profile/cover picture if exists
-            if (!string.IsNullOrEmpty(userToDelete.ProfilePicture))
-                FilesSetting.DeleteFile(userToDelete.ProfilePicture);
-
-            if (!string.IsNullOrEmpty(userToDelete.CoverProfilePicture))
-                FilesSetting.DeleteFile(userToDelete.CoverProfilePicture);
-
-            // Delete roles before deleting user
-            var roles = await _userManager.GetRolesAsync(userToDelete);
-            if (roles.Any())
-                await _userManager.RemoveFromRolesAsync(userToDelete, roles);
-
-            var result = await _userManager.DeleteAsync(userToDelete);
-            if (!result.Succeeded)
+            catch (Exception ex)
             {
                 return new ResponseDto
                 {
                     IsSucceeded = false,
                     Status = 500,
-                    Message = "Failed to delete the user."
+                    Message = $"Critical error in deletion process: {ex.Message}"
                 };
             }
-
-            return new ResponseDto
-            {
-                IsSucceeded = true,
-                Status = 200,
-                Message = "User deleted successfully."
-            };
         }
+
 
 
 

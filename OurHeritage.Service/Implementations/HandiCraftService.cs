@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs;
@@ -14,11 +16,13 @@ namespace OurHeritage.Service.Implementations
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
+        private readonly ApplicationDbContext _context;
 
-        public HandiCraftService(IUnitOfWork unitOfWork, IMapper mapper)
+        public HandiCraftService(IUnitOfWork unitOfWork, IMapper mapper, ApplicationDbContext context)
         {
             _unitOfWork = unitOfWork;
             _mapper = mapper;
+            _context = context;
         }
 
         public async Task<ResponseDto> CreateHandiCraftAsync(CreateOrUpdateHandiCraftDto dto)
@@ -212,68 +216,62 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> DeleteHandiCraftAsync(ClaimsPrincipal user, int handiCraftId)
         {
-            // Extract user ID from the token
-            if (!int.TryParse(user.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+            try
+            {
+                var handiCraft = await _context.HandiCrafts
+                    .Include(h => h.Favorite)
+                    .FirstOrDefaultAsync(h => h.Id == handiCraftId);
+
+                if (handiCraft == null)
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 404,
+                        Message = "HandiCraft not found - must have been too crafty!"
+                    };
+                }
+
+                // Check if user is the crafty creator or the mighty admin
+                var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+                var userRole = user.FindFirstValue(ClaimTypes.Role);
+
+                if (userId != handiCraft.UserId.ToString() && userRole != "Admin")
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 403,
+                        Message = "Not your craft to dismantle!"
+                    };
+                }
+
+                if (handiCraft.Favorite?.Any() == true)
+                {
+                    _context.Favorites.RemoveRange(handiCraft.Favorite);
+                }
+
+
+                _unitOfWork.Repository<HandiCraft>().Delete(handiCraft);
+                await _unitOfWork.CompleteAsync();
+
+                return new ResponseDto
+                {
+                    IsSucceeded = true,
+                    Status = 200,
+                    Message = "HandiCraft deleted successfully!"
+                };
+            }
+            catch (Exception ex)
             {
                 return new ResponseDto
                 {
                     IsSucceeded = false,
-                    Status = 401,
-                    Message = "User ID not found in token."
+                    Status = 500,
+                    Message = $"Craft deletion failed: {ex.Message}"
                 };
             }
-
-            // Extract user role from the token
-            var loggedInUserRole = user.FindFirst(ClaimTypes.Role)?.Value;
-
-            var handiCraft = await _unitOfWork.Repository<HandiCraft>().GetByIdAsync(handiCraftId);
-            if (handiCraft == null)
-            {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 404,
-                    Message = "HandiCraft not found."
-                };
-            }
-
-            // Check if the logged-in user is the owner of the HandiCraft or an admin
-            if (loggedInUserId != handiCraft.UserId && loggedInUserRole != "Admin")
-            {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 403,
-                    Message = "You do not have permission to delete this HandiCraft."
-                };
-            }
-
-            _unitOfWork.Repository<HandiCraft>().Delete(handiCraft);
-            await _unitOfWork.CompleteAsync();
-
-            return new ResponseDto
-            {
-                IsSucceeded = true,
-                Status = 200,
-                Message = "HandiCraft deleted successfully."
-            };
         }
-
-
-        //public async Task<ResponseDto> GetAvailableStockCountAsync()
-        //{
-
-        //    var handiCrafts = await _unitOfWork.Repository<HandiCraft>()
-        //        .ListAllAsync();
-
-        //    return new ResponseDto
-        //    {
-        //        Message = $"Number of available handi crafts is {handiCrafts.Count()}",
-        //        Status = 200,
-        //        Model = handiCrafts.Count()
-        //    };
-
-        //}
 
 
     }

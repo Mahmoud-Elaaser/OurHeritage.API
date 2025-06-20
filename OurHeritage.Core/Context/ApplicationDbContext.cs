@@ -39,10 +39,9 @@ namespace OurHeritage.Core.Context
 
             modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
-            foreach (var relationship in modelBuilder.Model
-                .GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
+            foreach (var relationship in modelBuilder.Model.GetEntityTypes().SelectMany(e => e.GetForeignKeys()))
             {
-                relationship.DeleteBehavior = DeleteBehavior.Restrict;
+                relationship.DeleteBehavior = DeleteBehavior.ClientCascade;
             }
 
         }

@@ -23,11 +23,7 @@ namespace OurHeritage.API.Controllers
             _logger = logger;
         }
 
-        /// <summary>
-        /// Get mixed recommendations (both cultural and handicrafts)
-        /// </summary>
-        /// <param name="count">Number of recommendations to return (default: 10)</param>
-        /// <returns>List of mixed recommendations</returns>
+
         [HttpGet]
         public async Task<ActionResult<List<RecommendationResult>>> GetRecommendations([FromQuery] int count = 10)
         {
@@ -47,12 +43,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get recommendations by specific type
-        /// </summary>
-        /// <param name="type">Type of recommendations (Cultural, Handicraft, Mixed)</param>
-        /// <param name="count">Number of recommendations to return (default: 10)</param>
-        /// <returns>List of recommendations by type</returns>
+
         [HttpGet("by-type")]
         public async Task<ActionResult<List<RecommendationResult>>> GetRecommendationsByType(
             [FromQuery] RecommendationType type = RecommendationType.Mixed,
@@ -74,11 +65,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get cultural recommendations only
-        /// </summary>
-        /// <param name="count">Number of recommendations to return (default: 10)</param>
-        /// <returns>List of cultural recommendations</returns>
+
         [HttpGet("cultural")]
         public async Task<ActionResult<List<RecommendationResult>>> GetCulturalRecommendations([FromQuery] int count = 10)
         {
@@ -98,11 +85,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get handicraft recommendations only
-        /// </summary>
-        /// <param name="count">Number of recommendations to return (default: 10)</param>
-        /// <returns>List of handicraft recommendations</returns>
+
         [HttpGet("handicrafts")]
         public async Task<ActionResult<List<RecommendationResult>>> GetHandicraftRecommendations([FromQuery] int count = 10)
         {
@@ -122,12 +105,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get similar handicrafts based on a specific handicraft
-        /// </summary>
-        /// <param name="handicraftId">ID of the handicraft to find similar items for</param>
-        /// <param name="count">Number of similar items to return (default: 5)</param>
-        /// <returns>List of similar handicrafts</returns>
+
         [HttpGet("handicrafts/{handicraftId}/similar")]
         public async Task<ActionResult<List<RecommendationResult>>> GetSimilarHandicrafts(
             int handicraftId,
@@ -148,12 +126,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get similar cultural items based on a specific cultural item
-        /// </summary>
-        /// <param name="culturalId">ID of the cultural item to find similar items for</param>
-        /// <param name="count">Number of similar items to return (default: 5)</param>
-        /// <returns>List of similar cultural items</returns>
+
         [HttpGet("cultural/{culturalId}/similar")]
         public async Task<ActionResult<List<RecommendationResult>>> GetSimilarCulturals(
             int culturalId,
@@ -174,11 +147,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get trending handicrafts
-        /// </summary>
-        /// <param name="count">Number of trending items to return (default: 10)</param>
-        /// <returns>List of trending handicrafts</returns>
+
         [HttpGet("handicrafts/trending")]
         [AllowAnonymous]
         public async Task<ActionResult<List<RecommendationResult>>> GetTrendingHandicrafts([FromQuery] int count = 10)
@@ -195,11 +164,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get recently added handicrafts
-        /// </summary>
-        /// <param name="count">Number of recent items to return (default: 10)</param>
-        /// <returns>List of recently added handicrafts</returns>
+
         [HttpGet("handicrafts/recent")]
         [AllowAnonymous]
         public async Task<ActionResult<List<RecommendationResult>>> GetRecentHandicrafts([FromQuery] int count = 10)
@@ -216,13 +181,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get handicrafts within a specific price range
-        /// </summary>
-        /// <param name="minPrice">Minimum price</param>
-        /// <param name="maxPrice">Maximum price</param>
-        /// <param name="count">Number of items to return (default: 10)</param>
-        /// <returns>List of handicrafts within price range</returns>
+
         [HttpGet("handicrafts/price-range")]
         public async Task<ActionResult<List<RecommendationResult>>> GetHandicraftsByPriceRange(
             [FromQuery] double minPrice,
@@ -248,10 +207,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Update user preferences (refresh recommendation cache)
-        /// </summary>
-        /// <returns>Success message</returns>
+
         [HttpPost("refresh-preferences")]
         public async Task<ActionResult> RefreshUserPreferences()
         {
@@ -271,10 +227,7 @@ namespace OurHeritage.API.Controllers
             }
         }
 
-        /// <summary>
-        /// Get user's recommendation statistics
-        /// </summary>
-        /// <returns>User recommendation statistics</returns>
+
         [HttpGet("stats")]
         public async Task<ActionResult<object>> GetRecommendationStats()
         {
@@ -306,41 +259,6 @@ namespace OurHeritage.API.Controllers
                 return StatusCode(500, "Internal server error");
             }
         }
-
-        /// <summary>
-        /// Get recommendation results as separated lists
-        /// </summary>
-        /// <param name="type">Type of recommendations</param>
-        /// <param name="count">Number of recommendations</param>
-        /// <returns>Separated cultural and handicraft lists</returns>
-        //[HttpGet("separated")]
-        //public async Task<ActionResult<object>> GetSeparatedRecommendations(
-        //    [FromQuery] RecommendationType type = RecommendationType.Mixed,
-        //    [FromQuery] int count = 10)
-        //{
-        //    try
-        //    {
-        //        var userId = GetCurrentUserId();
-        //        if (userId == null)
-        //            return Unauthorized("User not authenticated");
-
-        //        var recommendations = await _recommendationService.GetRecommendationsAsync(userId.Value, type, count);
-
-        //        var response = new
-        //        {
-        //            CulturalItems = recommendations.GetCulturalRecommendations(),
-        //            HandicraftItems = recommendations.GetHandicraftRecommendations(),
-        //            TotalCount = recommendations.Count
-        //        };
-
-        //        return Ok(response);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Error getting separated recommendations");
-        //        return StatusCode(500, "Internal server error");
-        //    }
-        //}
 
         private int? GetCurrentUserId()
         {

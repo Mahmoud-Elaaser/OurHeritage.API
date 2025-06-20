@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
@@ -287,28 +288,63 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> DeleteCulturalArticleAsync(int id)
         {
-            var culturalArticle = await _unitOfWork.Repository<CulturalArticle>().GetByIdAsync(id);
-            if (culturalArticle == null)
+            try
+            {
+                // Get the article with all related entities
+                var culturalArticle = await _context.CulturalArticles
+                    .Include(a => a.Comments)
+                    .Include(a => a.Likes)
+                    .FirstOrDefaultAsync(a => a.Id == id);
+
+                if (culturalArticle == null)
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 404,
+                        Message = "CulturalArticle not found"
+                    };
+                }
+
+                if (culturalArticle.Comments != null && culturalArticle.Comments.Any())
+                {
+                    _context.Comments.RemoveRange(culturalArticle.Comments);
+                }
+
+                if (culturalArticle.Likes != null && culturalArticle.Likes.Any())
+                {
+                    _context.Likes.RemoveRange(culturalArticle.Likes);
+                }
+
+                var reposts = await _context.Reposts
+                    .Where(r => r.CulturalArticleId == id)
+                    .ToListAsync();
+
+                if (reposts.Any())
+                {
+                    _context.Reposts.RemoveRange(reposts);
+                }
+
+                _unitOfWork.Repository<CulturalArticle>().Delete(culturalArticle);
+
+                await _unitOfWork.CompleteAsync();
+
+                return new ResponseDto
+                {
+                    IsSucceeded = true,
+                    Status = 200,
+                    Message = "CulturalArticle deleted successfully."
+                };
+            }
+            catch (Exception ex)
             {
                 return new ResponseDto
                 {
                     IsSucceeded = false,
-                    Status = 404,
-                    Message = "CulturalArticle not found"
+                    Status = 500,
+                    Message = $"Error deleting article: {ex.Message}"
                 };
             }
-
-            var likes = _context.Likes.Where(l => l.CulturalArticleId == id);
-            _context.Likes.RemoveRange(likes);
-
-            _unitOfWork.Repository<CulturalArticle>().Delete(culturalArticle);
-            await _unitOfWork.CompleteAsync();
-            return new ResponseDto
-            {
-                IsSucceeded = true,
-                Status = 200,
-                Message = "CulturalArticle deleted successfully."
-            };
         }
 
         public async Task<ResponseDto> GetUserArticlesAsync(int userId)
