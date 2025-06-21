@@ -1,555 +1,642 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.EntityFrameworkCore;
+using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Enums;
-using OurHeritage.Repo.Repositories.Interfaces;
-using OurHeritage.Service.DTOs;
+using OurHeritage.Service.DTOs.RecommendationSystemDto;
 using OurHeritage.Service.Interfaces;
-
 
 namespace OurHeritage.Service.Implementations
 {
     public class RecommendationService : IRecommendationService
     {
-        private readonly IGenericRepository<CulturalArticle> _culturalRepository;
-        private readonly IGenericRepository<HandiCraft> _handicraftRepository;
-        private readonly IGenericRepository<Category> _categoryRepository;
-        private readonly IGenericRepository<Favorite> _favoriteRepository;
-        private readonly IGenericRepository<Order> _orderRepository;
-        private readonly ILogger<RecommendationService> _logger;
-        private readonly Dictionary<int, EnhancedUserPreference> _userPreferencesCache = new();
+        private readonly ApplicationDbContext _context;
 
-        public RecommendationService(
-            IGenericRepository<CulturalArticle> culturalRepository,
-            IGenericRepository<HandiCraft> handicraftRepository,
-            IGenericRepository<Category> categoryRepository,
-            IGenericRepository<Favorite> favoriteRepository,
-            IGenericRepository<Order> orderRepository,
-            ILogger<RecommendationService> logger)
+        public RecommendationService(ApplicationDbContext context)
         {
-            _culturalRepository = culturalRepository;
-            _handicraftRepository = handicraftRepository;
-            _categoryRepository = categoryRepository;
-            _favoriteRepository = favoriteRepository;
-            _orderRepository = orderRepository;
-            _logger = logger;
+            _context = context;
         }
 
-        public async Task<List<RecommendationResult>> GetRecommendationsAsync(int userId, RecommendationType type = RecommendationType.Mixed, int count = 10)
+
+        public async Task<RecommendationResponseDto> GetRecommendationsAsync(
+            int userId,
+            int pageSize = 10,
+            int pageNumber = 1,
+            RecommendationType filterType = RecommendationType.Both)
         {
-            try
+            var userEngagement = await GetUserEngagementDataAsync(userId);
+
+            if (!userEngagement.LikedArticleIds.Any() &&
+                !userEngagement.CommentedArticleIds.Any() &&
+                !userEngagement.FavoriteHandicraftIds.Any())
             {
-                await UpdateUserPreferencesAsync(userId);
-
-                return type switch
-                {
-                    RecommendationType.Cultural => await GetCulturalRecommendationsAsync(userId, count),
-                    RecommendationType.Handicraft => await GetHandicraftRecommendationsAsync(userId, count),
-                    RecommendationType.Mixed => await GetMixedRecommendationsAsync(userId, count),
-                    _ => await GetMixedRecommendationsAsync(userId, count)
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error getting recommendations for user {UserId}", userId);
-                return new List<RecommendationResult>();
-            }
-        }
-
-        public async Task<List<RecommendationResult>> GetCulturalRecommendationsAsync(int userId, int count = 10)
-        {
-            var userPrefs = await GetUserPreferencesAsync(userId);
-            var culturals = await _culturalRepository.ListAllAsync();
-
-            var recommendations = new List<RecommendationResult>();
-
-            foreach (var cultural in culturals)
-            {
-                var item = new CulturalRecommendationItem(cultural);
-                var score = CalculateCulturalScore(item, userPrefs);
-                var factors = GetCulturalRecommendationFactors(item, userPrefs);
-
-                recommendations.Add(new RecommendationResult
-                {
-                    Item = item,
-                    Score = score,
-                    ReasonForRecommendation = GenerateReasonForCultural(factors),
-                    RecommendationFactors = factors
-                });
+                return await GetPopularItemsRecommendationsAsync(pageSize, pageNumber, filterType);
             }
 
-            return recommendations.OrderByDescending(r => r.Score).Take(count).ToList();
-        }
+            var allArticles = new List<RecommendationDto>();
+            var allHandicrafts = new List<RecommendationDto>();
 
-        public async Task<List<RecommendationResult>> GetHandicraftRecommendationsAsync(int userId, int count = 10)
-        {
-            var userPrefs = await GetUserPreferencesAsync(userId);
-            var handicrafts = await _handicraftRepository.ListAllAsync();
-            var userFavorites = userPrefs.FavoriteHandicrafts;
-            var userOrdered = userPrefs.OrderedHandicrafts;
-
-            var recommendations = new List<RecommendationResult>();
-
-            foreach (var handicraft in handicrafts.Where(h => !userFavorites.Contains(h.Id) && !userOrdered.Contains(h.Id)))
+            // Only get articles if requested
+            if (filterType == RecommendationType.Both || filterType == RecommendationType.ArticlesOnly)
             {
-                var item = new HandicraftRecommendationItem(handicraft);
-                var score = CalculateHandicraftScore(item, userPrefs);
-                var factors = GetHandicraftRecommendationFactors(item, userPrefs);
-
-                recommendations.Add(new RecommendationResult
-                {
-                    Item = item,
-                    Score = score,
-                    ReasonForRecommendation = GenerateReasonForHandicraft(factors),
-                    RecommendationFactors = factors
-                });
+                var recommendedArticles = await GetContentBasedArticleRecommendationsAsync(userEngagement, pageSize / 2);
+                var collaborativeArticles = await GetCollaborativeArticleRecommendationsAsync(userId, pageSize / 2);
+                allArticles = CombineAndRankRecommendations(recommendedArticles, collaborativeArticles);
             }
 
-            return recommendations.OrderByDescending(r => r.Score).Take(count).ToList();
-        }
-
-        private async Task<List<RecommendationResult>> GetMixedRecommendationsAsync(int userId, int count = 10)
-        {
-            var culturalCount = count / 2;
-            var handicraftCount = count - culturalCount;
-
-            var culturalRecommendations = await GetCulturalRecommendationsAsync(userId, culturalCount);
-            var handicraftRecommendations = await GetHandicraftRecommendationsAsync(userId, handicraftCount);
-
-            var mixedRecommendations = new List<RecommendationResult>();
-            mixedRecommendations.AddRange(culturalRecommendations);
-            mixedRecommendations.AddRange(handicraftRecommendations);
-
-            return mixedRecommendations.OrderByDescending(r => r.Score).Take(count).ToList();
-        }
-
-        public async Task<List<RecommendationResult>> GetSimilarHandicraftsAsync(int handicraftId, int count = 5)
-        {
-            var targetHandicraft = await _handicraftRepository.GetByIdAsync(handicraftId);
-            if (targetHandicraft == null) return new List<RecommendationResult>();
-
-            var allHandicrafts = await _handicraftRepository.ListAllAsync();
-            var recommendations = new List<RecommendationResult>();
-
-            foreach (var handicraft in allHandicrafts.Where(h => h.Id != handicraftId))
+            // Only get handicrafts if requested
+            if (filterType == RecommendationType.Both || filterType == RecommendationType.HandicraftsOnly)
             {
-                var similarity = CalculateHandicraftSimilarity(targetHandicraft, handicraft);
-                if (similarity > 0.3) // Threshold for similarity
-                {
-                    var item = new HandicraftRecommendationItem(handicraft);
-                    recommendations.Add(new RecommendationResult
+                var recommendedHandicrafts = await GetContentBasedHandicraftRecommendationsAsync(userEngagement, pageSize / 2);
+                var collaborativeHandicrafts = await GetCollaborativeHandicraftRecommendationsAsync(userId, pageSize / 2);
+                allHandicrafts = CombineAndRankRecommendations(recommendedHandicrafts, collaborativeHandicrafts);
+            }
+
+            // Adjust the take count based on filter type
+            var articlesToTake = filterType switch
+            {
+                RecommendationType.ArticlesOnly => pageSize,
+                RecommendationType.HandicraftsOnly => 0,
+                _ => pageSize / 2
+            };
+
+            var handicraftsToTake = filterType switch
+            {
+                RecommendationType.HandicraftsOnly => pageSize,
+                RecommendationType.ArticlesOnly => 0,
+                _ => pageSize / 2
+            };
+
+            return new RecommendationResponseDto
+            {
+                RecommendedArticles = allArticles.Take(articlesToTake).ToList(),
+                RecommendedHandicrafts = allHandicrafts.Take(handicraftsToTake).ToList(),
+                TotalCount = allArticles.Take(articlesToTake).Count() + allHandicrafts.Take(handicraftsToTake).Count(),
+                RecommendationReason = GetRecommendationReason(filterType)
+            };
+        }
+
+        // Add overload for backward compatibility
+        public async Task<RecommendationResponseDto> GetRecommendationsAsync(int userId, int pageSize = 10, int pageNumber = 1)
+        {
+            return await GetRecommendationsAsync(userId, pageSize, pageNumber, RecommendationType.Both);
+        }
+
+
+        private async Task<RecommendationResponseDto> GetPopularItemsRecommendationsAsync(
+            int pageSize,
+            int pageNumber,
+            RecommendationType filterType)
+        {
+            var popularArticles = new List<RecommendationDto>();
+            var popularHandicrafts = new List<RecommendationDto>();
+
+            // Only get articles if requested
+            if (filterType == RecommendationType.Both || filterType == RecommendationType.ArticlesOnly)
+            {
+                var articlesToTake = filterType == RecommendationType.ArticlesOnly ? pageSize : pageSize / 2;
+
+                popularArticles = await _context.Set<CulturalArticle>()
+                    .Include(a => a.Category)
+                    .Include(a => a.User)
+                    .OrderByDescending(a => a.Likes.Count())
+                    .ThenByDescending(a => a.Comments.Count())
+                    .Skip((pageNumber - 1) * articlesToTake)
+                    .Take(articlesToTake)
+                    .Select(a => new RecommendationDto
                     {
-                        Item = item,
-                        Score = similarity,
-                        ReasonForRecommendation = $"Similar to {targetHandicraft.Title}",
-                        RecommendationFactors = new List<string> { "Similar category", "Similar price range" }
-                    });
-                }
+                        Type = "Article",
+                        ItemId = a.Id,
+                        Title = a.Title,
+                        Images = a.ImageURL ?? new List<string>(),
+                        Content = a.Content.Length > 200 ? a.Content.Substring(0, 200) + "..." : a.Content,
+                        CategoryName = a.Category.Name,
+                        Creator = new CreatorDto
+                        {
+                            UserId = a.User.Id,
+                            FullName = $"{a.User.FirstName} {a.User.LastName}",
+                            Email = a.User.Email,
+                            ProfilePicture = a.User.ProfilePicture,
+                            Connections = a.User.Connections ?? new List<string>()
+                        },
+                        RecommendationScore = CalculateArticleScore(a)
+                    })
+                    .ToListAsync();
             }
 
-            return recommendations.OrderByDescending(r => r.Score).Take(count).ToList();
-        }
-
-        public async Task<List<RecommendationResult>> GetSimilarCulturalsAsync(int culturalId, int count = 5)
-        {
-            var targetCultural = await _culturalRepository.GetByIdAsync(culturalId);
-            if (targetCultural == null) return new List<RecommendationResult>();
-
-            var allCulturals = await _culturalRepository.ListAllAsync();
-            var recommendations = new List<RecommendationResult>();
-
-            foreach (var cultural in allCulturals.Where(c => c.Id != culturalId))
+            // Only get handicrafts if requested
+            if (filterType == RecommendationType.Both || filterType == RecommendationType.HandicraftsOnly)
             {
-                var similarity = CalculateCulturalSimilarity(targetCultural, cultural);
-                if (similarity > 0.3)
-                {
-                    var item = new CulturalRecommendationItem(cultural);
-                    recommendations.Add(new RecommendationResult
+                var handicraftsToTake = filterType == RecommendationType.HandicraftsOnly ? pageSize : pageSize / 2;
+
+                popularHandicrafts = await _context.Set<HandiCraft>()
+                    .Include(h => h.Category)
+                    .Include(h => h.User)
+                    .OrderByDescending(h => h.Favorite.Count())
+                    .Skip((pageNumber - 1) * handicraftsToTake)
+                    .Take(handicraftsToTake)
+                    .Select(h => new RecommendationDto
                     {
-                        Item = item,
-                        Score = similarity,
-                        ReasonForRecommendation = $"Similar to {targetCultural.Title}",
-                        RecommendationFactors = new List<string> { "Similar category", "Similar content" }
-                    });
-                }
+                        Type = "Handicraft",
+                        ItemId = h.Id,
+                        Title = h.Title,
+                        Images = h.ImageOrVideo ?? new List<string>(),
+                        Content = h.Description.Length > 200 ? h.Description.Substring(0, 200) + "..." : h.Description,
+                        CategoryName = h.Category.Name,
+                        Price = h.Price,
+                        Creator = new CreatorDto
+                        {
+                            UserId = h.User.Id,
+                            FullName = $"{h.User.FirstName} {h.User.LastName}",
+                            Email = h.User.Email,
+                            ProfilePicture = h.User.ProfilePicture,
+                            Connections = h.User.Connections ?? new List<string>()
+                        },
+                        RecommendationScore = CalculateHandicraftScore(h)
+                    })
+                    .ToListAsync();
             }
 
-            return recommendations.OrderByDescending(r => r.Score).Take(count).ToList();
-        }
-
-        public async Task<List<RecommendationResult>> GetTrendingHandicraftsAsync(int count = 10)
-        {
-            var handicrafts = await _handicraftRepository.ListAllAsync();
-            var recommendations = new List<RecommendationResult>();
-
-            foreach (var handicraft in handicrafts)
+            return new RecommendationResponseDto
             {
-                var trendingScore = CalculateTrendingScore(handicraft);
-                var item = new HandicraftRecommendationItem(handicraft);
-
-                recommendations.Add(new RecommendationResult
-                {
-                    Item = item,
-                    Score = trendingScore,
-                    ReasonForRecommendation = "Trending now",
-                    RecommendationFactors = new List<string> { "Popular", "High engagement" }
-                });
-            }
-
-            return recommendations.OrderByDescending(r => r.Score).Take(count).ToList();
+                RecommendedArticles = popularArticles,
+                RecommendedHandicrafts = popularHandicrafts,
+                TotalCount = popularArticles.Count + popularHandicrafts.Count,
+                RecommendationReason = GetPopularRecommendationReason(filterType)
+            };
         }
 
-        public async Task<List<RecommendationResult>> GetRecentHandicraftsAsync(int count = 10)
+
+        private static string GetRecommendationReason(RecommendationType filterType)
         {
-            var handicrafts = await _handicraftRepository.ListAllAsync();
-            var recentHandicrafts = handicrafts
-                .OrderByDescending(h => h.DateAdded)
-                .Take(count)
+            return filterType switch
+            {
+                RecommendationType.ArticlesOnly => "Based on your interactions with cultural articles and similar users",
+                RecommendationType.HandicraftsOnly => "Based on your interactions with handicrafts and similar users",
+                _ => "Based on your interactions and similar users"
+            };
+        }
+
+
+        private static string GetPopularRecommendationReason(RecommendationType filterType)
+        {
+            return filterType switch
+            {
+                RecommendationType.ArticlesOnly => "Popular cultural articles trending now",
+                RecommendationType.HandicraftsOnly => "Popular handicrafts trending now",
+                _ => "Popular items trending now"
+            };
+        }
+
+
+        public async Task<RecommendationResponseDto> GetRecommendationsByCategoryAsync(
+            int userId,
+            int categoryId,
+            RecommendationType filterType = RecommendationType.Both,
+            int pageSize = 10,
+            int pageNumber = 1)
+        {
+            var allArticles = new List<RecommendationDto>();
+            var allHandicrafts = new List<RecommendationDto>();
+
+            // Get articles by category if requested
+            if (filterType == RecommendationType.Both || filterType == RecommendationType.ArticlesOnly)
+            {
+                allArticles = await _context.Set<CulturalArticle>()
+                    .Include(a => a.Category)
+                    .Include(a => a.User)
+                    .Where(a => a.CategoryId == categoryId &&
+                               !_context.Set<Like>().Any(l => l.UserId == userId && l.CulturalArticleId == a.Id))
+                    .OrderByDescending(a => a.Likes.Count())
+                    .ThenByDescending(a => a.Comments.Count())
+                    .Select(a => new RecommendationDto
+                    {
+                        Type = "Article",
+                        ItemId = a.Id,
+                        Title = a.Title,
+                        Images = a.ImageURL ?? new List<string>(),
+                        Content = a.Content.Length > 200 ? a.Content.Substring(0, 200) + "..." : a.Content,
+                        CategoryName = a.Category.Name,
+                        Creator = new CreatorDto
+                        {
+                            UserId = a.User.Id,
+                            FullName = $"{a.User.FirstName} {a.User.LastName}",
+                            Email = a.User.Email,
+                            ProfilePicture = a.User.ProfilePicture,
+                            Connections = a.User.Connections ?? new List<string>()
+                        },
+                        RecommendationScore = CalculateArticleScore(a)
+                    })
+                    .ToListAsync();
+            }
+
+            // Get handicrafts by category if requested
+            if (filterType == RecommendationType.Both || filterType == RecommendationType.HandicraftsOnly)
+            {
+                allHandicrafts = await _context.Set<HandiCraft>()
+                    .Include(h => h.Category)
+                    .Include(h => h.User)
+                    .Where(h => h.CategoryId == categoryId &&
+                               !_context.Set<Favorite>().Any(f => f.UserId == userId && f.HandiCraftId == h.Id))
+                    .OrderByDescending(h => h.Favorite.Count())
+                    .Select(h => new RecommendationDto
+                    {
+                        Type = "Handicraft",
+                        ItemId = h.Id,
+                        Title = h.Title,
+                        Images = h.ImageOrVideo ?? new List<string>(),
+                        Content = h.Description.Length > 200 ? h.Description.Substring(0, 200) + "..." : h.Description,
+                        CategoryName = h.Category.Name,
+                        Price = h.Price,
+                        Creator = new CreatorDto
+                        {
+                            UserId = h.User.Id,
+                            FullName = $"{h.User.FirstName} {h.User.LastName}",
+                            Email = h.User.Email,
+                            ProfilePicture = h.User.ProfilePicture,
+                            Connections = h.User.Connections ?? new List<string>()
+                        },
+                        RecommendationScore = CalculateHandicraftScore(h)
+                    })
+                    .ToListAsync();
+            }
+
+            // Apply pagination and filtering
+            var articlesToTake = filterType switch
+            {
+                RecommendationType.ArticlesOnly => pageSize,
+                RecommendationType.HandicraftsOnly => 0,
+                _ => pageSize / 2
+            };
+
+            var handicraftsToTake = filterType switch
+            {
+                RecommendationType.HandicraftsOnly => pageSize,
+                RecommendationType.ArticlesOnly => 0,
+                _ => pageSize / 2
+            };
+
+            var pagedArticles = allArticles
+                .Skip((pageNumber - 1) * articlesToTake)
+                .Take(articlesToTake)
                 .ToList();
 
-            var recommendations = new List<RecommendationResult>();
-            foreach (var handicraft in recentHandicrafts)
+            var pagedHandicrafts = allHandicrafts
+                .Skip((pageNumber - 1) * handicraftsToTake)
+                .Take(handicraftsToTake)
+                .ToList();
+
+            return new RecommendationResponseDto
             {
-                var item = new HandicraftRecommendationItem(handicraft);
-                recommendations.Add(new RecommendationResult
+                RecommendedArticles = pagedArticles,
+                RecommendedHandicrafts = pagedHandicrafts,
+                TotalCount = pagedArticles.Count + pagedHandicrafts.Count,
+                RecommendationReason = $"Items from selected category - {GetRecommendationReason(filterType)}"
+            };
+        }
+
+
+        public async Task<UserEngagementDto> GetUserEngagementDataAsync(int userId)
+        {
+            var likes = await _context.Set<Like>()
+                .Where(l => l.UserId == userId)
+                .Select(l => l.CulturalArticleId)
+                .ToListAsync();
+
+            var comments = await _context.Set<Comment>()
+                .Where(c => c.UserId == userId)
+                .Select(c => c.CulturalArticleId)
+                .ToListAsync();
+
+            var favorites = await _context.Set<Favorite>()
+                .Where(f => f.UserId == userId)
+                .Select(f => f.HandiCraftId)
+                .ToListAsync();
+
+            // Get engaged categories
+            var articleCategoryIds = await _context.Set<CulturalArticle>()
+                .Where(a => likes.Contains(a.Id) || comments.Contains(a.Id))
+                .Select(a => a.CategoryId)
+                .ToListAsync();
+
+            var handicraftCategoryIds = await _context.Set<HandiCraft>()
+                .Where(h => favorites.Contains(h.Id))
+                .Select(h => h.CategoryId)
+                .ToListAsync();
+
+            var engagedCategories = articleCategoryIds.Concat(handicraftCategoryIds).Distinct().ToList();
+
+            return new UserEngagementDto
+            {
+                UserId = userId,
+                LikedArticleIds = likes,
+                CommentedArticleIds = comments,
+                FavoriteHandicraftIds = favorites,
+                EngagedCategoryIds = engagedCategories
+            };
+        }
+
+        private async Task<List<RecommendationDto>> GetContentBasedArticleRecommendationsAsync(UserEngagementDto engagement, int count)
+        {
+            var engagedArticleIds = engagement.LikedArticleIds.Concat(engagement.CommentedArticleIds).Distinct();
+
+            var recommendations = await _context.Set<CulturalArticle>()
+                .Include(a => a.Category)
+                .Include(a => a.User)
+                .Where(a => !engagedArticleIds.Contains(a.Id) &&
+                           engagement.EngagedCategoryIds.Contains(a.CategoryId))
+                .OrderByDescending(a => a.Likes.Count())
+                .ThenByDescending(a => a.Comments.Count())
+                .Take(count)
+                .Select(a => new RecommendationDto
                 {
-                    Item = item,
-                    Score = 1.0,
-                    ReasonForRecommendation = "Recently added",
-                    RecommendationFactors = new List<string> { "New arrival" }
-                });
-            }
+                    Type = "Article",
+                    ItemId = a.Id,
+                    Title = a.Title,
+                    Images = a.ImageURL ?? new List<string>(),
+                    Content = a.Content.Length > 200 ? a.Content.Substring(0, 200) + "..." : a.Content,
+                    CategoryName = a.Category.Name,
+                    Creator = new CreatorDto
+                    {
+                        UserId = a.User.Id,
+                        FullName = $"{a.User.FirstName} {a.User.LastName}",
+                        Email = a.User.Email,
+                        ProfilePicture = a.User.ProfilePicture,
+                        Connections = a.User.Connections ?? new List<string>()
+                    },
+                    RecommendationScore = CalculateArticleScore(a)
+                })
+                .ToListAsync();
 
             return recommendations;
         }
 
-        public async Task<List<RecommendationResult>> GetHandicraftsByPriceRangeAsync(int userId, double minPrice, double maxPrice, int count = 10)
+        private async Task<List<RecommendationDto>> GetContentBasedHandicraftRecommendationsAsync(UserEngagementDto engagement, int count)
         {
-            var userPrefs = await GetUserPreferencesAsync(userId);
-            var handicrafts = await _handicraftRepository.ListAllAsync();
-
-            var filteredHandicrafts = handicrafts.Where(h => h.Price >= minPrice && h.Price <= maxPrice);
-            var recommendations = new List<RecommendationResult>();
-
-            foreach (var handicraft in filteredHandicrafts)
-            {
-                var item = new HandicraftRecommendationItem(handicraft);
-                var score = CalculateHandicraftScore(item, userPrefs);
-
-                recommendations.Add(new RecommendationResult
+            var recommendations = await _context.Set<HandiCraft>()
+                .Include(h => h.Category)
+                .Include(h => h.User)
+                .Where(h => !engagement.FavoriteHandicraftIds.Contains(h.Id) &&
+                           engagement.EngagedCategoryIds.Contains(h.CategoryId))
+                .OrderByDescending(h => h.Favorite.Count())
+                .Take(count)
+                .Select(h => new RecommendationDto
                 {
-                    Item = item,
-                    Score = score,
-                    ReasonForRecommendation = $"Within your price range (${minPrice:F2} - ${maxPrice:F2})",
-                    RecommendationFactors = new List<string> { "Price match", "Category preference" }
-                });
-            }
-
-            return recommendations.OrderByDescending(r => r.Score).Take(count).ToList();
-        }
-
-        public async Task UpdateUserPreferencesAsync(int userId)
-        {
-            try
-            {
-                var userPref = new EnhancedUserPreference { UserId = userId };
-
-                // Get user's favorite handicrafts
-                var favorites = await _favoriteRepository.ListAllAsync();
-                var userFavoriteHandicrafts = favorites.Where(f => f.UserId == userId).ToList();
-
-                foreach (var favorite in userFavoriteHandicrafts)
-                {
-                    userPref.FavoriteHandicrafts.Add(favorite.HandiCraftId);
-                    var handicraft = await _handicraftRepository.GetByIdAsync(favorite.HandiCraftId);
-                    if (handicraft != null)
+                    Type = "Handicraft",
+                    ItemId = h.Id,
+                    Title = h.Title,
+                    Images = h.ImageOrVideo ?? new List<string>(),
+                    Content = h.Description.Length > 200 ? h.Description.Substring(0, 200) + "..." : h.Description,
+                    CategoryName = h.Category.Name,
+                    Price = h.Price,
+                    Creator = new CreatorDto
                     {
-                        UpdateCategoryPreference(userPref.CategoryPreferences, handicraft.CategoryId, 1.0);
-                        UpdatePriceRangePreference(userPref.PriceRangePreferences, handicraft.Price);
-                    }
-                }
+                        UserId = h.User.Id,
+                        FullName = $"{h.User.FirstName} {h.User.LastName}",
+                        Email = h.User.Email,
+                        ProfilePicture = h.User.ProfilePicture,
+                        Connections = h.User.Connections ?? new List<string>()
+                    },
+                    RecommendationScore = CalculateHandicraftScore(h)
+                })
+                .ToListAsync();
 
-                // Get user's orders for handicrafts
-                var orders = await _orderRepository.ListAllAsync();
-                var userOrders = orders.Where(o => o.UserId == userId && o.IsPaid).ToList();
+            return recommendations;
+        }
 
-                foreach (var order in userOrders)
+        private async Task<List<RecommendationDto>> GetCollaborativeArticleRecommendationsAsync(int userId, int count)
+        {
+            // Find users with similar engagement patterns
+            var similarUsers = await FindSimilarUsersAsync(userId);
+
+            var rawArticles = await _context.Set<Like>()
+                .Include(l => l.CulturalArticle).ThenInclude(a => a.Category)
+                .Include(l => l.CulturalArticle).ThenInclude(a => a.User)
+                .Where(l => similarUsers.Contains(l.UserId) && l.UserId != userId)
+                .Select(l => l.CulturalArticle)
+                .Where(a => !_context.Set<Like>().Any(ul => ul.UserId == userId && ul.CulturalArticleId == a.Id))
+                .GroupBy(a => a.Id)
+                .OrderByDescending(g => g.Count())
+                .Take(count)
+                .Select(g => g.First())
+                .ToListAsync();
+
+            var recommendations = rawArticles.Select(a => new RecommendationDto
+            {
+                Type = "Article",
+                ItemId = a.Id,
+                Title = a.Title,
+                Images = a.ImageURL ?? new List<string>(),
+                Content = a.Content.Length > 200 ? a.Content.Substring(0, 200) + "..." : a.Content,
+                CategoryName = a.Category?.Name,
+                Creator = new CreatorDto
                 {
-                    // Process all handicrafts in each order
-                    foreach (var handicraft in order.HandiCrafts)
+                    UserId = a.User?.Id ?? 0,
+                    FullName = $"{a.User?.FirstName} {a.User?.LastName}",
+                    Email = a.User?.Email,
+                    ProfilePicture = a.User?.ProfilePicture,
+                    Connections = a.User?.Connections ?? new List<string>()
+                },
+                RecommendationScore = CalculateArticleScore(a)
+            }).ToList();
+
+            return recommendations;
+        }
+
+        private async Task<List<RecommendationDto>> GetCollaborativeHandicraftRecommendationsAsync(int userId, int count)
+        {
+            var similarUsers = await FindSimilarUsersAsync(userId);
+
+            var rawHandicrafts = await _context.Set<Favorite>()
+                .Include(f => f.HandiCraft).ThenInclude(h => h.Category)
+                .Include(f => f.HandiCraft).ThenInclude(h => h.User)
+                .Where(f => similarUsers.Contains(f.UserId) && f.UserId != userId)
+                .Select(f => f.HandiCraft)
+                .Where(h => !_context.Set<Favorite>().Any(uf => uf.UserId == userId && uf.HandiCraftId == h.Id))
+                .GroupBy(h => h.Id)
+                .OrderByDescending(g => g.Count())
+                .Take(count)
+                .Select(g => g.First())
+                .ToListAsync();
+
+            var recommendations = rawHandicrafts.Select(h => new RecommendationDto
+            {
+                Type = "Handicraft",
+                ItemId = h.Id,
+                Title = h.Title,
+                Images = h.ImageOrVideo ?? new List<string>(),
+                Content = h.Description.Length > 200 ? h.Description.Substring(0, 200) + "..." : h.Description,
+                CategoryName = h.Category?.Name,
+                Price = h.Price,
+                Creator = new CreatorDto
+                {
+                    UserId = h.User?.Id ?? 0,
+                    FullName = $"{h.User?.FirstName} {h.User?.LastName}",
+                    Email = h.User?.Email,
+                    ProfilePicture = h.User?.ProfilePicture,
+                    Connections = h.User?.Connections ?? new List<string>()
+                },
+                RecommendationScore = CalculateHandicraftScore(h)
+            }).ToList();
+
+            return recommendations;
+        }
+
+        private async Task<List<int>> FindSimilarUsersAsync(int userId)
+        {
+            var userEngagement = await GetUserEngagementDataAsync(userId);
+
+            var engagedItems = userEngagement.LikedArticleIds
+                .Concat(userEngagement.CommentedArticleIds)
+                .Concat(userEngagement.FavoriteHandicraftIds)
+                .Distinct()
+                .ToList();
+
+            var similarUsers = await _context.Set<Like>()
+                .Where(l => engagedItems.Contains(l.CulturalArticleId) && l.UserId != userId)
+                .Select(l => l.UserId)
+                .Union(
+                    _context.Set<Comment>()
+                        .Where(c => engagedItems.Contains(c.CulturalArticleId) && c.UserId != userId)
+                        .Select(c => c.UserId)
+                )
+                .Union(
+                    _context.Set<Favorite>()
+                        .Where(f => engagedItems.Contains(f.HandiCraftId) && f.UserId != userId)
+                        .Select(f => f.UserId)
+                )
+                .GroupBy(u => u)
+                .Where(g => g.Count() >= 2)
+                .OrderByDescending(g => g.Count())
+                .Take(10)
+                .Select(g => g.Key)
+                .ToListAsync();
+
+            return similarUsers;
+        }
+
+        public async Task<List<RecommendationDto>> GetSimilarArticlesAsync(int articleId, int userId, int count = 5)
+        {
+            var targetArticle = await _context.Set<CulturalArticle>()
+                .Include(a => a.Category)
+                .FirstOrDefaultAsync(a => a.Id == articleId);
+
+            if (targetArticle == null) return new List<RecommendationDto>();
+
+            var similarArticles = await _context.Set<CulturalArticle>()
+                .Include(a => a.Category)
+                .Include(a => a.User)
+                .Where(a => a.Id != articleId &&
+                           a.CategoryId == targetArticle.CategoryId &&
+                           !_context.Set<Like>().Any(l => l.UserId == userId && l.CulturalArticleId == a.Id))
+                .OrderByDescending(a => a.Likes.Count())
+                .Take(count)
+                .Select(a => new RecommendationDto
+                {
+                    Type = "Article",
+                    ItemId = a.Id,
+                    Title = a.Title,
+                    Images = a.ImageURL ?? new List<string>(),
+                    Content = a.Content.Length > 200 ? a.Content.Substring(0, 200) + "..." : a.Content,
+                    CategoryName = a.Category.Name,
+                    Creator = new CreatorDto
                     {
-                        userPref.OrderedHandicrafts.Add(handicraft.Id);
-                        UpdateCategoryPreference(userPref.CategoryPreferences, handicraft.CategoryId, 1.5); // Higher weight for purchases
-                        UpdatePriceRangePreference(userPref.PriceRangePreferences, handicraft.Price);
-                    }
-                }
+                        UserId = a.User.Id,
+                        FullName = $"{a.User.FirstName} {a.User.LastName}",
+                        Email = a.User.Email,
+                        ProfilePicture = a.User.ProfilePicture,
+                        Connections = a.User.Connections ?? new List<string>()
+                    },
+                    RecommendationScore = CalculateArticleScore(a)
+                })
+                .ToListAsync();
 
-                _userPreferencesCache[userId] = userPref;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating user preferences for user {UserId}", userId);
-            }
+            return similarArticles;
         }
 
-        private async Task<EnhancedUserPreference> GetUserPreferencesAsync(int userId)
+        public async Task<List<RecommendationDto>> GetSimilarHandicraftsAsync(int handicraftId, int userId, int count = 5)
         {
-            if (!_userPreferencesCache.ContainsKey(userId) ||
-                _userPreferencesCache[userId].LastUpdated < DateTime.UtcNow.AddHours(-1))
-            {
-                await UpdateUserPreferencesAsync(userId);
-            }
+            var targetHandicraft = await _context.Set<HandiCraft>()
+                .Include(h => h.Category)
+                .FirstOrDefaultAsync(h => h.Id == handicraftId);
 
-            return _userPreferencesCache.GetValueOrDefault(userId, new EnhancedUserPreference { UserId = userId });
+            if (targetHandicraft == null) return new List<RecommendationDto>();
+
+            var similarHandicrafts = await _context.Set<HandiCraft>()
+                .Include(h => h.Category)
+                .Include(h => h.User)
+                .Where(h => h.Id != handicraftId &&
+                           h.CategoryId == targetHandicraft.CategoryId &&
+                           !_context.Set<Favorite>().Any(f => f.UserId == userId && f.HandiCraftId == h.Id))
+                .OrderByDescending(h => h.Favorite.Count())
+                .Take(count)
+                .Select(h => new RecommendationDto
+                {
+                    Type = "Handicraft",
+                    ItemId = h.Id,
+                    Title = h.Title,
+                    Images = h.ImageOrVideo ?? new List<string>(),
+                    Content = h.Description.Length > 200 ? h.Description.Substring(0, 200) + "..." : h.Description,
+                    CategoryName = h.Category.Name,
+                    Price = h.Price,
+                    Creator = new CreatorDto
+                    {
+                        UserId = h.User.Id,
+                        FullName = $"{h.User.FirstName} {h.User.LastName}",
+                        Email = h.User.Email,
+                        ProfilePicture = h.User.ProfilePicture,
+                        Connections = h.User.Connections ?? new List<string>()
+                    },
+                    RecommendationScore = CalculateHandicraftScore(h)
+                })
+                .ToListAsync();
+
+            return similarHandicrafts;
         }
 
-        private double CalculateCulturalScore(CulturalRecommendationItem item, EnhancedUserPreference userPrefs)
+        public async Task UpdateUserEngagementAsync(int userId, string engagementType, int itemId)
         {
-            double score = 0.0;
-
-            // Category preference
-            if (userPrefs.CategoryPreferences.ContainsKey(item.CategoryId))
-            {
-                score += userPrefs.CategoryPreferences[item.CategoryId] * 0.6;
-            }
-
-            // Recency boost
-            var daysSinceAdded = (DateTime.UtcNow - item.DateAdded).TotalDays;
-            if (daysSinceAdded < 30)
-            {
-                score += (30 - daysSinceAdded) / 30 * 0.2;
-            }
-
-            // Content type preference
-            score += 0.2; // Base score for cultural content
-
-            return Math.Min(score, 1.0);
+            await Task.CompletedTask;
         }
 
-        private double CalculateHandicraftScore(HandicraftRecommendationItem item, EnhancedUserPreference userPrefs)
+        private static double CalculateArticleScore(CulturalArticle article)
         {
-            double score = 0.0;
+            var likesWeight = 0.4;
+            var commentsWeight = 0.3;
+            var recencyWeight = 0.3;
 
-            // Category preference
-            if (userPrefs.CategoryPreferences.ContainsKey(item.CategoryId))
-            {
-                score += userPrefs.CategoryPreferences[item.CategoryId] * 0.4;
-            }
+            var likes = article.Likes?.Count() ?? 0;
+            var comments = article.Comments?.Count() ?? 0;
+            var daysSinceCreated = (DateTime.UtcNow - article.DateCreated).Days;
+            var recencyScore = Math.Max(0, 30 - daysSinceCreated) / 30.0;
 
-            // Price range preference
-            var priceRange = GetPriceRange(item.Price);
-            if (userPrefs.PriceRangePreferences.ContainsKey(priceRange))
-            {
-                score += userPrefs.PriceRangePreferences[priceRange] * 0.3;
-            }
-
-            // Recency boost
-            var daysSinceAdded = (DateTime.UtcNow - item.DateAdded).TotalDays;
-            if (daysSinceAdded < 30)
-            {
-                score += (30 - daysSinceAdded) / 30 * 0.2;
-            }
-
-            // Base score for handicrafts
-            score += 0.1;
-
-            return Math.Min(score, 1.0);
+            return (likes * likesWeight) + (comments * commentsWeight) + (recencyScore * recencyWeight);
         }
 
-        private double CalculateHandicraftSimilarity(HandiCraft target, HandiCraft candidate)
+        private static double CalculateHandicraftScore(HandiCraft handicraft)
         {
-            double similarity = 0.0;
+            var favoritesWeight = 0.5;
+            var recencyWeight = 0.3;
+            var priceWeight = 0.2;
 
-            // Category similarity
-            if (target.CategoryId == candidate.CategoryId)
-            {
-                similarity += 0.5;
-            }
+            var favorites = handicraft.Favorite?.Count() ?? 0;
+            var daysSinceCreated = (DateTime.UtcNow - handicraft.DateAdded).Days;
+            var recencyScore = Math.Max(0, 30 - daysSinceCreated) / 30.0;
+            var priceScore = Math.Max(0, 1000 - handicraft.Price) / 1000.0;
 
-            // Price similarity
-            var priceDifference = Math.Abs(target.Price - candidate.Price);
-            var maxPrice = Math.Max(target.Price, candidate.Price);
-            if (maxPrice > 0)
-            {
-                var priceSimiliarity = 1.0 - (priceDifference / maxPrice);
-                similarity += priceSimiliarity * 0.3;
-            }
-
-            // Description similarity (basic text comparison)
-            var descriptionSimilarity = CalculateTextSimilarity(target.Description, candidate.Description);
-            similarity += descriptionSimilarity * 0.2;
-
-            return similarity;
+            return (favorites * favoritesWeight) + (recencyScore * recencyWeight) + (priceScore * priceWeight);
         }
 
-        private double CalculateCulturalSimilarity(CulturalArticle target, CulturalArticle candidate)
+        private static List<RecommendationDto> CombineAndRankRecommendations(
+            List<RecommendationDto> list1,
+            List<RecommendationDto> list2)
         {
-            double similarity = 0.0;
+            var combined = list1.Concat(list2)
+                .GroupBy(r => new { r.Type, r.ItemId })
+                .Select(g => g.OrderByDescending(r => r.RecommendationScore).First())
+                .OrderByDescending(r => r.RecommendationScore)
+                .ToList();
 
-            // Category similarity
-            if (target.CategoryId == candidate.CategoryId)
-            {
-                similarity += 0.6;
-            }
-
-            // Description similarity
-            var descriptionSimilarity = CalculateTextSimilarity(target.Title, candidate.Title);
-            similarity += descriptionSimilarity * 0.4;
-
-            return similarity;
-        }
-
-        private double CalculateTrendingScore(HandiCraft handicraft)
-        {
-            // This is a simplified trending calculation
-
-            var daysSinceAdded = (DateTime.UtcNow - handicraft.DateAdded).TotalDays;
-            var recencyScore = Math.Max(0, (30 - daysSinceAdded) / 30);
-
-            // Add some randomness to simulate engagement metrics
-            var random = new Random(handicraft.Id);
-            var engagementScore = random.NextDouble();
-
-            return (recencyScore * 0.6) + (engagementScore * 0.4);
-        }
-
-        private double CalculateTextSimilarity(string text1, string text2)
-        {
-            if (string.IsNullOrEmpty(text1) || string.IsNullOrEmpty(text2))
-                return 0.0;
-
-            var words1 = text1.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var words2 = text2.ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-
-            var intersection = words1.Intersect(words2).Count();
-            var union = words1.Union(words2).Count();
-
-            return union > 0 ? (double)intersection / union : 0.0;
-        }
-
-        private void UpdateCategoryPreference(Dictionary<int, double> categoryPrefs, int categoryId, double weight)
-        {
-            if (categoryPrefs.ContainsKey(categoryId))
-            {
-                categoryPrefs[categoryId] += weight;
-            }
-            else
-            {
-                categoryPrefs[categoryId] = weight;
-            }
-        }
-
-        private void UpdatePriceRangePreference(Dictionary<string, double> priceRangePrefs, double price)
-        {
-            var priceRange = GetPriceRange(price);
-            if (priceRangePrefs.ContainsKey(priceRange))
-            {
-                priceRangePrefs[priceRange] += 1.0;
-            }
-            else
-            {
-                priceRangePrefs[priceRange] = 1.0;
-            }
-        }
-
-        private string GetPriceRange(double price)
-        {
-            return price switch
-            {
-                < 25 => "budget",
-                < 100 => "affordable",
-                < 500 => "moderate",
-                < 1000 => "premium",
-                _ => "luxury"
-            };
-        }
-
-        private List<string> GetCulturalRecommendationFactors(CulturalRecommendationItem item, EnhancedUserPreference userPrefs)
-        {
-            var factors = new List<string>();
-
-            if (userPrefs.CategoryPreferences.ContainsKey(item.CategoryId))
-            {
-                factors.Add("Matches your category interests");
-            }
-
-            if ((DateTime.UtcNow - item.DateAdded).TotalDays < 7)
-            {
-                factors.Add("Recently added");
-            }
-
-            return factors;
-        }
-
-        private List<string> GetHandicraftRecommendationFactors(HandicraftRecommendationItem item, EnhancedUserPreference userPrefs)
-        {
-            var factors = new List<string>();
-
-            if (userPrefs.CategoryPreferences.ContainsKey(item.CategoryId))
-            {
-                factors.Add("Matches your category interests");
-            }
-
-            var priceRange = GetPriceRange(item.Price);
-            if (userPrefs.PriceRangePreferences.ContainsKey(priceRange))
-            {
-                factors.Add($"Within your preferred {priceRange} price range");
-            }
-
-            if ((DateTime.UtcNow - item.DateAdded).TotalDays < 7)
-            {
-                factors.Add("Recently added");
-            }
-
-            return factors;
-        }
-
-        private string GenerateReasonForCultural(List<string> factors)
-        {
-            if (factors.Any())
-            {
-                return $"Recommended because: {string.Join(", ", factors)}";
-            }
-            return "You might find this cultural item interesting";
-        }
-
-        private string GenerateReasonForHandicraft(List<string> factors)
-        {
-            if (factors.Any())
-            {
-                return $"Recommended because: {string.Join(", ", factors)}";
-            }
-            return "You might like this handicraft";
+            return combined;
         }
     }
-
-    // Extension methods for easier usage
-    public static class RecommendationExtensions
-    {
-        public static List<CulturalArticle> ToCulturalList(this List<RecommendationResult> recommendations)
-        {
-            return recommendations
-                .Where(r => r.Item is CulturalRecommendationItem)
-                .Select(r => ((CulturalRecommendationItem)r.Item).Cultural)
-                .ToList();
-        }
-
-        public static List<HandiCraft> ToHandicraftList(this List<RecommendationResult> recommendations)
-        {
-            return recommendations
-                .Where(r => r.Item is HandicraftRecommendationItem)
-                .Select(r => ((HandicraftRecommendationItem)r.Item).HandiCraft)
-                .ToList();
-        }
-
-        public static List<RecommendationResult> GetHandicraftRecommendations(this List<RecommendationResult> recommendations)
-        {
-            return recommendations.Where(r => r.Item is HandicraftRecommendationItem).ToList();
-        }
-
-        public static List<RecommendationResult> GetCulturalRecommendations(this List<RecommendationResult> recommendations)
-        {
-            return recommendations.Where(r => r.Item is CulturalRecommendationItem).ToList();
-        }
-    }
-
 }

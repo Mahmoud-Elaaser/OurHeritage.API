@@ -2,8 +2,8 @@
 {
     public enum RecommendationType
     {
-        Cultural,
-        Handicraft,
-        Mixed
+        Both = 0,
+        ArticlesOnly = 1,
+        HandicraftsOnly = 2
     }
 }
