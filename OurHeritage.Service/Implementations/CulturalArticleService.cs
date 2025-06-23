@@ -290,7 +290,6 @@ namespace OurHeritage.Service.Implementations
         {
             try
             {
-                // Get the article with all related entities
                 var culturalArticle = await _context.CulturalArticles
                     .Include(a => a.Comments)
                     .Include(a => a.Likes)
@@ -324,6 +323,14 @@ namespace OurHeritage.Service.Implementations
                 {
                     _context.Reposts.RemoveRange(reposts);
                 }
+                var notifications = await _context.Notifications
+                    .Where(r => r.CulturalArticleId == id)
+                    .ToListAsync();
+
+                if (notifications.Any())
+                {
+                    _context.Notifications.RemoveRange(notifications);
+                }
 
                 _unitOfWork.Repository<CulturalArticle>().Delete(culturalArticle);
 
@@ -342,7 +349,7 @@ namespace OurHeritage.Service.Implementations
                 {
                     IsSucceeded = false,
                     Status = 500,
-                    Message = $"Error deleting article: {ex.Message}"
+                    Message = "Error deleting article"
                 };
             }
         }

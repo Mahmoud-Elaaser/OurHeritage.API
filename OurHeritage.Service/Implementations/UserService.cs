@@ -197,88 +197,143 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<ResponseDto> DeleteUserAsync(ClaimsPrincipal currentUser, int userId)
         {
+            if (!int.TryParse(currentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
+            {
+                return new ResponseDto { IsSucceeded = false, Status = 401, Message = "Unauthorized - User identification failed" };
+            }
+
+            var userRole = currentUser.FindFirst(ClaimTypes.Role)?.Value;
+            var userToDelete = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (userToDelete == null)
+            {
+                return new ResponseDto { IsSucceeded = false, Status = 404, Message = "User not found" };
+            }
+
+            if (loggedInUserId != userId && userRole != "Admin")
+            {
+                return new ResponseDto { IsSucceeded = false, Status = 403, Message = "Forbidden - Only user or admin can perform this action" };
+            }
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
-                if (!int.TryParse(currentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value, out int loggedInUserId))
-                {
-                    return new ResponseDto { IsSucceeded = false, Status = 401, Message = "Secret agent ID missing - mission aborted!" };
-                }
-
-                var userRole = currentUser.FindFirst(ClaimTypes.Role)?.Value;
-                var userToDelete = await _userManager.FindByIdAsync(userId.ToString());
-
-                if (userToDelete == null)
-                {
-                    return new ResponseDto { IsSucceeded = false, Status = 404, Message = "User vanished like a ghost in the machine!" };
-                }
-
-                if (loggedInUserId != userId && userRole != "Admin")
-                {
-                    return new ResponseDto { IsSucceeded = false, Status = 403, Message = "Red alert! You're not the user or admin - aborting!" };
-                }
-
-                using var transaction = await _context.Database.BeginTransactionAsync();
-
-                // Delete OrderItems before deleting HandiCrafts
-                var userHandiCraftIds = await _context.HandiCrafts
-                    .Where(h => h.UserId == userId)
-                    .Select(h => h.Id)
+                // 1. First delete notifications related to user's articles
+                var articleIds = await _context.CulturalArticles
+                    .Where(a => a.UserId == userId)
+                    .Select(a => a.Id)
                     .ToListAsync();
 
-                var relatedOrderItems = await _context.OrderItems
-                    .Where(oi => userHandiCraftIds.Contains(oi.HandiCraftId))
+                if (articleIds.Any())
+                {
+                    // Delete notifications first that reference these articles
+                    await _context.Notifications
+                        .Where(n => articleIds.Contains(n.CulturalArticleId ?? 0))
+                        .ExecuteDeleteAsync();
+
+                    // Then delete article interactions
+                    await _context.Comments.Where(c => articleIds.Contains(c.CulturalArticleId)).ExecuteDeleteAsync();
+                    await _context.Likes.Where(l => articleIds.Contains(l.CulturalArticleId)).ExecuteDeleteAsync();
+                    await _context.Reposts.Where(r => articleIds.Contains(r.CulturalArticleId)).ExecuteDeleteAsync();
+
+                    // Finally delete the articles
+                    await _context.CulturalArticles.Where(a => a.UserId == userId).ExecuteDeleteAsync();
+                }
+
+                // 2. Handle followers/following relationships
+                var followsAsFollower = await _context.Followers
+                    .Where(f => f.FollowerId == userId)
                     .ToListAsync();
 
-                _context.OrderItems.RemoveRange(relatedOrderItems);
+                if (followsAsFollower.Any())
+                {
+                    _context.Followers.RemoveRange(followsAsFollower);
+                }
 
-                // Delete related Orders (if no items left)
-                var relatedOrderIds = relatedOrderItems.Select(oi => oi.OrderId).Distinct().ToList();
-                var relatedOrders = await _context.Orders
-                    .Where(o => relatedOrderIds.Contains(o.Id))
+                var followsAsFollowing = await _context.Followings
+                    .Where(f => f.FollowingId == userId)
                     .ToListAsync();
 
-                _context.Orders.RemoveRange(relatedOrders);
+                if (followsAsFollowing.Any())
+                {
+                    _context.Followings.RemoveRange(followsAsFollowing);
+                }
 
-                // Delete other related data
+
+                // 3. Delete OrderItems related to user's HandiCrafts
+                var orderItemsToDelete = await _context.OrderItems
+                    .Where(oi => _context.HandiCrafts
+                        .Where(h => h.UserId == userId)
+                        .Select(h => h.Id)
+                        .Contains(oi.HandiCraftId))
+                    .ToListAsync();
+
+                if (orderItemsToDelete.Any())
+                {
+                    _context.OrderItems.RemoveRange(orderItemsToDelete);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 4. Delete empty Orders
+                var emptyOrders = await _context.Orders
+                    .Where(o => !_context.OrderItems.Any(oi => oi.OrderId == o.Id))
+                    .Where(o => o.UserId == userId)
+                    .ToListAsync();
+
+                if (emptyOrders.Any())
+                {
+                    _context.Orders.RemoveRange(emptyOrders);
+                    await _context.SaveChangesAsync();
+                }
+
+                // 5. Delete remaining user-related data
                 await _context.Comments.Where(c => c.UserId == userId).ExecuteDeleteAsync();
                 await _context.Likes.Where(l => l.UserId == userId).ExecuteDeleteAsync();
                 await _context.Favorites.Where(f => f.UserId == userId).ExecuteDeleteAsync();
                 await _context.Reposts.Where(r => r.UserId == userId).ExecuteDeleteAsync();
-                await _context.Notifications.Where(n => n.ActorId == userId).ExecuteDeleteAsync();
+                await _context.Notifications
+                    .Where(n => n.ActorId == userId || n.RecipientId == userId)
+                    .ExecuteDeleteAsync();
 
+                // 6. Delete user's HandiCrafts and their favorites
+                var handiCraftIds = await _context.HandiCrafts
+                    .Where(h => h.UserId == userId)
+                    .Select(h => h.Id)
+                    .ToListAsync();
 
-                var articles = await _context.CulturalArticles.Where(a => a.UserId == userId).ToListAsync();
-                foreach (var article in articles)
+                if (handiCraftIds.Any())
                 {
-                    await _context.Comments.Where(c => c.CulturalArticleId == article.Id).ExecuteDeleteAsync();
-                    await _context.Likes.Where(l => l.CulturalArticleId == article.Id).ExecuteDeleteAsync();
-                    await _context.Reposts.Where(r => r.CulturalArticleId == article.Id).ExecuteDeleteAsync();
+                    await _context.Favorites.Where(f => handiCraftIds.Contains(f.HandiCraftId)).ExecuteDeleteAsync();
+                    await _context.HandiCrafts.Where(h => h.UserId == userId).ExecuteDeleteAsync();
                 }
-                _context.CulturalArticles.RemoveRange(articles);
 
-                // Delete HandiCrafts (after OrderItems are gone)
-                var crafts = await _context.HandiCrafts.Where(h => h.UserId == userId).ToListAsync();
-                foreach (var craft in crafts)
+                // 7. Clean up profile files
+                try
                 {
-                    await _context.Favorites.Where(f => f.HandiCraftId == craft.Id).ExecuteDeleteAsync();
+                    if (!string.IsNullOrEmpty(userToDelete.ProfilePicture))
+                        FilesSetting.DeleteFile(userToDelete.ProfilePicture);
+
+                    if (!string.IsNullOrEmpty(userToDelete.CoverProfilePicture))
+                        FilesSetting.DeleteFile(userToDelete.CoverProfilePicture);
                 }
-                _context.HandiCrafts.RemoveRange(crafts);
+                catch (Exception ex)
+                {
+                    return new ResponseDto
+                    {
+                        IsSucceeded = false,
+                        Status = 500,
+                        Message = "User deletion failed."
+                    };
+                }
 
-                // File cleanup
-                if (!string.IsNullOrEmpty(userToDelete.ProfilePicture))
-                    FilesSetting.DeleteFile(userToDelete.ProfilePicture);
-
-                if (!string.IsNullOrEmpty(userToDelete.CoverProfilePicture))
-                    FilesSetting.DeleteFile(userToDelete.CoverProfilePicture);
-
-                // Remove user roles
+                // 8. Remove user roles
                 var roles = await _userManager.GetRolesAsync(userToDelete);
                 if (roles.Any())
                 {
                     await _userManager.RemoveFromRolesAsync(userToDelete, roles);
                 }
 
-                // Delete user
+                // 9. Delete the user
                 var result = await _userManager.DeleteAsync(userToDelete);
                 if (!result.Succeeded)
                 {
@@ -287,7 +342,7 @@ namespace OurHeritage.Service.Implementations
                     {
                         IsSucceeded = false,
                         Status = 500,
-                        Message = "Self-destruct sequence failed! " + string.Join(", ", result.Errors.Select(e => e.Description))
+                        Message = "User deletion failed: " + string.Join(", ", result.Errors.Select(e => e.Description))
                     };
                 }
 
@@ -296,16 +351,17 @@ namespace OurHeritage.Service.Implementations
                 {
                     IsSucceeded = true,
                     Status = 200,
-                    Message = "User and all digital traces successfully deleted!"
+                    Message = "User and all associated data deleted successfully"
                 };
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 return new ResponseDto
                 {
                     IsSucceeded = false,
                     Status = 500,
-                    Message = $"Critical error in deletion process: {ex.Message}"
+                    Message = $"An error occurred while deleting the user: {ex.Message}"
                 };
             }
         }
