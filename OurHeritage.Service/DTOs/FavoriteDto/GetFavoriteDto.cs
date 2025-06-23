@@ -1,4 +1,6 @@
-﻿namespace OurHeritage.Service.DTOs.FavoriteDto
+﻿using OurHeritage.Service.DTOs.HandiCraftDto;
+
+namespace OurHeritage.Service.DTOs.FavoriteDto
 {
     public class GetFavoriteDto
     {
@@ -9,5 +11,7 @@
         public string HandiCraftTitle { get; set; }
         public string CreatorProfilePicture { get; set; }
         public string DateCreated { get; set; }
+
+        public GetHandiCraftDto HandiCraft { get; set; }
     }
 }
