@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace OurHeritage.Service.DTOs.ChatDto
+﻿namespace OurHeritage.Service.DTOs.ChatDto
 {
     public class ConversationDto
     {
@@ -13,6 +7,7 @@ namespace OurHeritage.Service.DTOs.ChatDto
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public bool IsGroup { get; set; }
+        public string? GroupPictureFile { get; set; }
         public List<UserPreviewDto> Participants { get; set; }
         public MessageDto LastMessage { get; set; }
         public int UnreadCount { get; set; } // Number of unread messages for current user

@@ -32,11 +32,12 @@ namespace OurHeritage.API.Controllers
         [HttpPost("conversations")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<object>> CreateConversation(CreateConversationDto dto)
+        public async Task<ActionResult<object>> CreateConversation([FromForm] CreateConversationDto dto)
         {
             int userId = GetCurrentUserId();
             var conversation = await _chatService.CreateConversationAsync(dto, userId);
-            return Ok(new { conversationId = conversation.Id });
+            var returnedConversation = await _chatService.GetConversationByIdAsync(conversation.Id, userId);
+            return Ok(returnedConversation);
         }
 
 

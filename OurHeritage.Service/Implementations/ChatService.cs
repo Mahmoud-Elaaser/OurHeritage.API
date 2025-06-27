@@ -4,6 +4,7 @@ using OurHeritage.Core.Context;
 using OurHeritage.Core.Entities;
 using OurHeritage.Core.Specifications;
 using OurHeritage.Service.DTOs.ChatDto;
+using OurHeritage.Service.Helper;
 using OurHeritage.Service.Interfaces;
 
 namespace OurHeritage.Service.Implementations
@@ -21,135 +22,6 @@ namespace OurHeritage.Service.Implementations
             _paginationService = paginationService;
         }
 
-
-        public async Task<PaginationResponse<ConversationDto>> GetUserConversationsAsync(int userId, int page = 1, int pageSize = 10)
-        {
-            var specParams = new SpecParams
-            {
-                PageIndex = page,
-                PageSize = pageSize
-            };
-
-            // Get base conversations with eager loading (without pagination yet)
-            var allConversations = await _context.Conversations
-                .Include(c => c.Participants)
-                    .ThenInclude(p => p.User)
-                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
-                    .ThenInclude(m => m.Sender)
-                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
-                    .ThenInclude(m => m.ReadByUsers)
-                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
-                    .ThenInclude(m => m.ReplyToMessage)
-                        .ThenInclude(rm => rm.Sender)
-                .Where(c => c.Participants.Any(p => p.UserId == userId))
-                .OrderByDescending(c => c.UpdatedAt)
-                .ToListAsync();
-
-            // Use PaginationService
-            var paginatedResult = _paginationService.Paginate(allConversations, specParams, conversation =>
-            {
-                var dto = _mapper.Map<ConversationDto>(conversation);
-
-                dto.Title = conversation.IsGroup
-                    ? conversation.Title
-                    : GetOneToOneConversationTitle(conversation, userId);
-
-                dto.UnreadCount = conversation.Messages
-                    .Count(m => !m.ReadByUsers.Any(r => r.UserId == userId) && m.SenderId != userId);
-
-                if (dto.LastMessage != null)
-                {
-                    var lastMessage = conversation.Messages.FirstOrDefault();
-                    dto.LastMessage.IsRead = lastMessage.ReadByUsers.Any(r => r.UserId == userId) ||
-                                             lastMessage.SenderId == userId;
-                }
-
-                return dto;
-            });
-
-            return paginatedResult;
-        }
-
-
-        public async Task<ConversationDto> GetConversationByIdAsync(int conversationId, int userId)
-        {
-            // First check if user is part of this conversation
-            bool isUserInConversation = await IsUserInConversationAsync(conversationId, userId);
-            if (!isUserInConversation)
-            {
-                return null;
-            }
-
-            var conversation = await _context.Conversations
-                .Include(c => c.Participants)
-                    .ThenInclude(p => p.User)
-                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
-                    .ThenInclude(m => m.Sender)
-                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
-                    .ThenInclude(m => m.ReadByUsers)
-                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
-                    .ThenInclude(m => m.ReplyToMessage)
-                        .ThenInclude(rm => rm.Sender)
-                .FirstOrDefaultAsync(c => c.Id == conversationId);
-
-            if (conversation == null)
-            {
-                return null;
-            }
-
-            var dto = _mapper.Map<ConversationDto>(conversation);
-
-            // Set correct title based on group status
-            dto.Title = conversation.IsGroup
-                ? conversation.Title
-                : GetOneToOneConversationTitle(conversation, userId);
-
-            // Set unread count
-            dto.UnreadCount = conversation.Messages
-                .Count(m => !m.ReadByUsers.Any(r => r.UserId == userId) && m.SenderId != userId);
-
-            // Set IsRead property for last message
-            if (dto.LastMessage != null)
-            {
-                var lastMessage = conversation.Messages.FirstOrDefault();
-                dto.LastMessage.IsRead = lastMessage.ReadByUsers.Any(r => r.UserId == userId) ||
-                                        lastMessage.SenderId == userId;
-            }
-
-            return dto;
-        }
-
-        public async Task<Conversation> CreateConversationAsync(CreateConversationDto dto, int creatorId)
-        {
-            // Check if it's a direct message and if a conversation already exists
-            if (!dto.IsGroup && dto.ParticipantIds.Count == 1)
-            {
-                int otherUserId = dto.ParticipantIds[0];
-                var existingConversation = await FindExistingDirectConversation(creatorId, otherUserId);
-                if (existingConversation != null)
-                {
-                    return existingConversation;
-                }
-            }
-
-            // Create new conversation
-            var conversation = new Conversation
-            {
-                Title = dto.Title,
-                IsGroup = dto.IsGroup,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            _context.Conversations.Add(conversation);
-            await _context.SaveChangesAsync();
-
-            // Add all participants
-            await AddParticipantsToConversation(conversation.Id, dto.ParticipantIds.Append(creatorId).Distinct());
-
-            return conversation;
-        }
-
         public async Task<Message> SendMessageAsync(SendMessageDto dto, int senderId)
         {
             // Check if user is part of this conversation
@@ -159,7 +31,6 @@ namespace OurHeritage.Service.Implementations
                 return null;
             }
 
-            // Create message
             var message = new Message
             {
                 ConversationId = dto.ConversationId,
@@ -195,7 +66,7 @@ namespace OurHeritage.Service.Implementations
 
             if (referencedMessage == null)
             {
-                return null; // The referenced message doesn't exist or is not in this conversation
+                return null;
             }
 
             // Create message with reference to the original message
@@ -242,7 +113,7 @@ namespace OurHeritage.Service.Implementations
                 PageSize = pageSize
             };
 
-            // Get all messages for the conversation with necessary includes
+
             var allMessages = await _context.Messages
                 .Include(m => m.Sender)
                 .Include(m => m.ReadByUsers)
@@ -253,7 +124,7 @@ namespace OurHeritage.Service.Implementations
                 .OrderByDescending(m => m.SentAt)
                 .ToListAsync();
 
-            // Use PaginationService to paginate and map
+
             var paginatedResult = _paginationService.Paginate(allMessages, specParams, message =>
             {
                 var dto = _mapper.Map<MessageDto>(message);
@@ -274,13 +145,13 @@ namespace OurHeritage.Service.Implementations
                 PageSize = pageSize
             };
 
-            // Get all conversation IDs for the user
+
             var conversationIds = await _context.ConversationUsers
                 .Where(cu => cu.UserId == userId)
                 .Select(cu => cu.ConversationId)
                 .ToListAsync();
 
-            // Get all messages (without pagination yet)
+
             var allMessages = await _context.Messages
                 .Include(m => m.Sender)
                 .Include(m => m.Conversation)
@@ -292,7 +163,7 @@ namespace OurHeritage.Service.Implementations
                 .OrderByDescending(m => m.SentAt)
                 .ToListAsync();
 
-            // Use PaginationService to paginate and map
+
             var paginatedResult = _paginationService.Paginate(allMessages, specParams, message =>
             {
                 var dto = _mapper.Map<MessageDto>(message);
@@ -357,7 +228,7 @@ namespace OurHeritage.Service.Implementations
 
         public async Task<(int unreadCount, PaginationResponse<MessageDto> unreadMessages)> GetUnreadMessagesAsync(int userId, int page = 1, int pageSize = 10)
         {
-            // Get all conversation IDs the user is part of
+
             var conversationIds = await _context.ConversationUsers
                 .Where(cu => cu.UserId == userId)
                 .Select(cu => cu.ConversationId)
@@ -378,7 +249,7 @@ namespace OurHeritage.Service.Implementations
 
             var unreadMessagesList = await unreadMessagesQuery.ToListAsync();
 
-            // Map to DTOs and set IsRead = false
+
             var unreadMessageDtos = unreadMessagesList.Select(message =>
             {
                 var dto = _mapper.Map<MessageDto>(message);
@@ -386,12 +257,12 @@ namespace OurHeritage.Service.Implementations
                 return dto;
             });
 
-            // Use pagination service
+
             var paginated = _paginationService.Paginate(unreadMessageDtos, new SpecParams
             {
                 PageIndex = page,
                 PageSize = pageSize
-            }, dto => dto); // no projection needed — already mapped to DTO
+            }, dto => dto);
 
             return (unreadCount: unreadMessagesList.Count, unreadMessages: paginated);
         }
@@ -434,6 +305,197 @@ namespace OurHeritage.Service.Implementations
             return conversationUser;
         }
 
+
+
+
+        public async Task<PaginationResponse<ConversationDto>> GetUserConversationsAsync(int userId, int page = 1, int pageSize = 10)
+        {
+            var specParams = new SpecParams
+            {
+                PageIndex = page,
+                PageSize = pageSize
+            };
+
+
+            var allConversations = await _context.Conversations
+                .Include(c => c.Participants)
+                    .ThenInclude(p => p.User)
+                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
+                    .ThenInclude(m => m.Sender)
+                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
+                    .ThenInclude(m => m.ReadByUsers)
+                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
+                    .ThenInclude(m => m.ReplyToMessage)
+                        .ThenInclude(rm => rm.Sender)
+                .Where(c => c.Participants.Any(p => p.UserId == userId))
+                .OrderByDescending(c => c.UpdatedAt)
+                .ToListAsync();
+
+            var paginatedResult = _paginationService.Paginate(allConversations, specParams, conversation =>
+            {
+                var dto = _mapper.Map<ConversationDto>(conversation);
+
+                if (conversation.IsGroup)
+                {
+                    dto.Title = conversation.Title;
+                    dto.GroupPictureFile = conversation.GroupPicture;
+                }
+                else
+                {
+                    dto.Title = GetOneToOneConversationTitle(conversation, userId);
+                    // For private conversations, get the other person's profile picture
+                    var otherUser = conversation.Participants
+                        .FirstOrDefault(p => p.UserId != userId)?.User;
+                    dto.GroupPictureFile = otherUser?.ProfilePicture;
+                }
+
+                dto.UnreadCount = conversation.Messages
+                    .Count(m => !m.ReadByUsers.Any(r => r.UserId == userId) && m.SenderId != userId);
+
+                if (dto.LastMessage != null)
+                {
+                    var lastMessage = conversation.Messages.FirstOrDefault();
+                    dto.LastMessage.IsRead = lastMessage.ReadByUsers.Any(r => r.UserId == userId) ||
+                                             lastMessage.SenderId == userId;
+                }
+
+                return dto;
+            });
+
+            return paginatedResult;
+        }
+
+
+        public async Task<ConversationDto> GetConversationByIdAsync(int conversationId, int userId)
+        {
+            // First check if user is part of this conversation
+            bool isUserInConversation = await IsUserInConversationAsync(conversationId, userId);
+            if (!isUserInConversation)
+            {
+                return null;
+            }
+
+            var conversation = await _context.Conversations
+                .Include(c => c.Participants)
+                    .ThenInclude(p => p.User)
+                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
+                    .ThenInclude(m => m.Sender)
+                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
+                    .ThenInclude(m => m.ReadByUsers)
+                .Include(c => c.Messages.OrderByDescending(m => m.SentAt).Take(1))
+                    .ThenInclude(m => m.ReplyToMessage)
+                        .ThenInclude(rm => rm.Sender)
+                .FirstOrDefaultAsync(c => c.Id == conversationId);
+
+            if (conversation == null)
+            {
+                return null;
+            }
+
+            var dto = _mapper.Map<ConversationDto>(conversation);
+
+            // Set correct title and picture based on group status
+            if (conversation.IsGroup)
+            {
+                dto.Title = conversation.Title;
+                dto.GroupPictureFile = conversation.GroupPicture;
+            }
+            else
+            {
+                dto.Title = GetOneToOneConversationTitle(conversation, userId);
+                // For private conversations, get the other person's profile picture
+                var otherUser = conversation.Participants
+                    .FirstOrDefault(p => p.UserId != userId)?.User;
+                dto.GroupPictureFile = otherUser?.ProfilePicture;
+            }
+
+            dto.UnreadCount = conversation.Messages
+                .Count(m => !m.ReadByUsers.Any(r => r.UserId == userId) && m.SenderId != userId);
+
+            if (dto.LastMessage != null)
+            {
+                var lastMessage = conversation.Messages.FirstOrDefault();
+                dto.LastMessage.IsRead = lastMessage.ReadByUsers.Any(r => r.UserId == userId) ||
+                                        lastMessage.SenderId == userId;
+            }
+
+            return dto;
+        }
+
+
+        public async Task<Conversation> CreateConversationAsync(CreateConversationDto dto, int creatorId)
+        {
+            /// Auto-detect if it should be a group based on participant count
+            var totalParticipants = dto.ParticipantIds.Count + 1; // +1 for creator
+            bool shouldBeGroup = totalParticipants > 2 || dto.IsGroup;
+
+            // Check if it's a direct message and if a conversation already exists
+            if (!shouldBeGroup && dto.ParticipantIds.Count == 1)
+            {
+                int otherUserId = dto.ParticipantIds[0];
+                var existingConversation = await FindExistingDirectConversation(creatorId, otherUserId);
+                if (existingConversation != null)
+                {
+                    return existingConversation;
+                }
+            }
+
+            string conversationTitle;
+            string conversationPicture = null;
+
+            if (shouldBeGroup)
+            {
+                conversationTitle = !string.IsNullOrWhiteSpace(dto.Title) ? dto.Title : "Group Chat";
+
+
+                if (dto.GroupPictureFile != null)
+                {
+                    conversationPicture = FilesSetting.UploadFile(dto.GroupPictureFile, "GroupPictures");
+                }
+            }
+            else
+            {
+                // For private conversations: get other person's name and profile picture
+                int otherUserId = dto.ParticipantIds[0];
+                var otherUser = await _context.Users.FindAsync(otherUserId);
+
+                if (otherUser != null)
+                {
+                    conversationTitle = $"{otherUser.FirstName} {otherUser.LastName}".Trim();
+                    conversationPicture = otherUser.ProfilePicture;
+                }
+                else
+                {
+                    conversationTitle = "Private Chat";
+                    conversationPicture = null;
+                }
+            }
+
+
+            var conversation = new Conversation
+            {
+                Title = conversationTitle,
+                IsGroup = shouldBeGroup, // Auto-detect based on participant count
+                GroupPicture = conversationPicture,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.Conversations.Add(conversation);
+            await _context.SaveChangesAsync();
+
+            // Add all participants (including creator)
+            var allParticipantIds = dto.ParticipantIds.Append(creatorId).Distinct().ToList();
+            await AddParticipantsToConversation(conversation.Id, allParticipantIds);
+
+            // Reload the conversation with all includes to ensure proper data
+            var createdConversation = await _context.Conversations
+                .Include(c => c.Participants)
+                    .ThenInclude(p => p.User)
+                .FirstOrDefaultAsync(c => c.Id == conversation.Id);
+
+            return createdConversation ?? conversation;
+        }
 
 
         #region Private Helper Methods

@@ -1,15 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.AspNetCore.Http;
 
 namespace OurHeritage.Service.DTOs.ChatDto
 {
     public class CreateConversationDto
     {
-        public string Title { get; set; } 
+        public string Title { get; set; }
         public bool IsGroup { get; set; } = false;
-        public List<int> ParticipantIds { get; set; } 
+        public IFormFile? GroupPictureFile { get; set; }
+        public List<int> ParticipantIds { get; set; }
     }
 }
