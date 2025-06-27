@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OurHeritage.API.Response;
+using OurHeritage.Core.Entities;
+using OurHeritage.Repo.Repositories.Interfaces;
 using OurHeritage.Service.DTOs.AuthDto;
 using OurHeritage.Service.Interfaces;
 using System.Security.Claims;
@@ -13,9 +15,11 @@ namespace OurHeritage.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        public AuthController(IAuthService authService)
+        private readonly IUnitOfWork _unitOfWork;
+        public AuthController(IAuthService authService, IUnitOfWork unitOfWork)
         {
             _authService = authService;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpPost("register")]
@@ -133,6 +137,26 @@ namespace OurHeritage.API.Controllers
             return Ok(new { message = "User logged out successfully." });
         }
 
+        [HttpGet("is-admin")]
+        public async Task<IActionResult> IsCurrentUserAdmin()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+            {
+                return BadRequest(new { isAdmin = false, message = "User not authenticated." });
+            }
+
+            // Get user from database
+            var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
+            if (user == null)
+            {
+                return NotFound(new { isAdmin = false, message = "User not found." });
+            }
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var isAdmin = userRole?.ToLower() == "admin";
+
+            return Ok(new { isAdmin = isAdmin });
+        }
     }
 }

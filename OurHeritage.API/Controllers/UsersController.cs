@@ -27,7 +27,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        //[Authorize(Roles = "Admin")]
         public async Task<ActionResult<PaginationResponse<GetUserDto>>> GetAllUsers([FromQuery] SpecParams specParams)
         {
             var spec = new EntitySpecification<User>(specParams, e =>
