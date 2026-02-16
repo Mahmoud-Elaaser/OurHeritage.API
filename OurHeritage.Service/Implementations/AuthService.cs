@@ -1,8 +1,6 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using OurHeritage.Core.Entities;
 using OurHeritage.Service.DTOs.AuthDto;
@@ -23,18 +21,14 @@ namespace OurHeritage.Service.Implementations
         private readonly IConfiguration _configuration;
         private readonly SignInManager<User> _signInManager;
         private readonly IEmailService _emailService;
-        private readonly IMemoryCache _memoryCache;
-        private readonly ILogger<AuthService> _logger;
-        private static ConcurrentDictionary<string, OtpData> OtpStorage = new ConcurrentDictionary<string, OtpData>(); /// for otp code
+        private static ConcurrentDictionary<string, OtpData> OtpStorage = new ConcurrentDictionary<string, OtpData>(); 
 
         public AuthService(UserManager<User> userManager,
                            RoleManager<IdentityRole<int>> roleManager,
                            IMapper mapper,
                            IConfiguration configuration,
                            SignInManager<User> signInManager,
-                           IEmailService emailService,
-                           IMemoryCache memoryCache,
-                           ILogger<AuthService> logger)
+                           IEmailService emailService)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -42,31 +36,13 @@ namespace OurHeritage.Service.Implementations
             _configuration = configuration;
             _signInManager = signInManager;
             _emailService = emailService;
-            _memoryCache = memoryCache;
-            _logger = logger;
         }
 
         public async Task<ResponseDto> RegisterAsync(RegisterDto registerDto)
         {
-            if (registerDto == null)
-            {
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
-                    Status = 400,
-                    Message = "Registration data is required."
-                };
-            }
-
             var user = _mapper.Map<User>(registerDto);
-            user.Email = user.Email.ToLower();
-            user.UserName = user.Email;
 
-            //// !! Manually hash the password
-            user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, registerDto.Password);
-
-
-            var result = await _userManager.CreateAsync(user);
+            var result = await _userManager.CreateAsync(user, registerDto.Password);
 
 
             if (!result.Succeeded)
@@ -83,72 +59,218 @@ namespace OurHeritage.Service.Implementations
 
             await _userManager.AddToRoleAsync(user, "User");
 
-            var token = await GenerateJwtTokenAsync(user);
+            var generatedToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var body = $@"
+                        <html>
+                        <head>
+                            <style>
+                                body {{
+                                    font-family: Arial, sans-serif;
+                                    background-color: #f4f4f4;
+                                    padding: 20px;
+                                }}
+                                .container {{
+                                    background-color: #ffffff;
+                                    padding: 20px;
+                                    border-radius: 6px;
+                                    max-width: 500px;
+                                    margin: auto;
+                                    border: 1px solid #dddddd;
+                                }}
+                                .token {{
+                                    font-size: 18px;
+                                    font-weight: bold;
+                                    color: #2c3e50;
+                                    background-color: #f0f2f5;
+                                    padding: 10px;
+                                    border-radius: 4px;
+                                    display: inline-block;
+                                }}
+                                .footer {{
+                                    font-size: 12px;
+                                    color: #777777;
+                                    margin-top: 20px;
+                                }}
+                            </style>
+                        </head>
+                        <body>
+                            <div class='container'>
+                                <h3>Email Confirmation</h3>
+                                <p>Please use this token to confirm your email:</p>
+                                <div class='token'>{generatedToken}</div>
+
+                                <p style='margin-top:15px;'>Your ID: <strong>{user.Id}</strong></p>
+
+                                <div class='footer'>
+                                    If you did not request this email, you can safely ignore it.
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                        ";
+
+            await _emailService.SendEmailAsync(user.Email, "Confirm Your Email", body);
 
             return new ResponseDto
             {
                 IsSucceeded = true,
                 Status = 201,
                 Message = "Registration completed successfully.",
-                Model = new { Token = token, UserId = user.Id, Email = user.Email }
+                Model = new { UserId = user.Id, Email = user.Email }
             };
         }
 
+        public async Task<ResponseDto> ConfirmEmailAsync(ConfirmEmailDto confirmEmailDto)
+        {
+            var user = await _userManager.FindByIdAsync(confirmEmailDto.UserId);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+            if (user.EmailConfirmed)
+            {
+                return new ResponseDto
+                {
+                    Status = 400,
+                    Message = "Email already confirmed"
+                };
+            }
+
+            var result = await _userManager.ConfirmEmailAsync(user, confirmEmailDto.Token);
+            if (!result.Succeeded)
+            {
+                return new ResponseDto
+                {
+                    Status = 400,
+                    Message = "Email confirmation failed."
+                };
+            }
+
+            return new ResponseDto
+            {
+                Status = 200,
+                Message = "Email confirmed successfully. You can now login."
+            };
+        }
+
+        public async Task<ResponseDto> ResendConfirmationEmailAsync(string email)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null)
+            {
+                return new ResponseDto
+                {
+                    Status = 404,
+                    Message = "User not found"
+                };
+            }
+
+            if (user.EmailConfirmed)
+            {
+                return new ResponseDto
+                {
+                    Status = 400,
+                    Message = "Email already confirmed"
+                };
+            }
+
+
+            var generatedToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+            var body = $@"
+                        <html>
+                        <head>
+                            <style>
+                                body {{
+                                    font-family: Arial, sans-serif;
+                                    background-color: #f4f4f4;
+                                    padding: 20px;
+                                }}
+                                .container {{
+                                    background-color: #ffffff;
+                                    padding: 20px;
+                                    border-radius: 6px;
+                                    max-width: 500px;
+                                    margin: auto;
+                                    border: 1px solid #dddddd;
+                                }}
+                                .token {{
+                                    font-size: 18px;
+                                    font-weight: bold;
+                                    color: #2c3e50;
+                                    background-color: #f0f2f5;
+                                    padding: 10px;
+                                    border-radius: 4px;
+                                    display: inline-block;
+                                }}
+                                .footer {{
+                                    font-size: 12px;
+                                    color: #777777;
+                                    margin-top: 20px;
+                                }}
+                            </style>
+                        </head>
+                        <body>
+                            <div class='container'>
+                                <h3>Email Confirmation</h3>
+                                <p>Please use this token to confirm your email:</p>
+                                <div class='token'>{generatedToken}</div>
+
+                                <p style='margin-top:15px;'>Your ID: <strong>{user.Id}</strong></p>
+
+                                <div class='footer'>
+                                    If you did not request this email, you can safely ignore it.
+                                </div>
+                            </div>
+                        </body>
+                        </html>
+                        ";
+
+            await _emailService.SendEmailAsync(user.Email, "Confirm Your Email", body);
+
+            return new ResponseDto
+            {
+                Status = 200,
+                Message = "A confirmation email has been sent."
+            };
+
+        }
 
         public async Task<ResponseDto> LoginAsync(LoginDto loginDto)
         {
-            if (loginDto == null || string.IsNullOrWhiteSpace(loginDto.Email) || string.IsNullOrWhiteSpace(loginDto.Password))
+            var user = await _userManager.FindByNameAsync(loginDto.Email);
+            if(user == null)
             {
                 return new ResponseDto
                 {
-                    IsSucceeded = false,
-                    Status = 400,
-                    Message = "Email and password are required."
+                    Status = 40,
+                    Message = "User not found"
                 };
             }
 
-            var normalizedEmail = loginDto.Email.Trim().ToLower();
-
-            var user = await _userManager.FindByNameAsync(normalizedEmail);
-
-            if (user == null)
+            bool isConfirmed = await _userManager.IsEmailConfirmedAsync(user);
+            if (!isConfirmed)
             {
-                _logger.LogWarning("Login attempt failed: User not found.");
                 return new ResponseDto
                 {
-                    IsSucceeded = false,
-                    Status = 400,
-                    Message = "Invalid email or password."
-                };
-            }
-
-            if (await _userManager.IsLockedOutAsync(user))
-            {
-                _logger.LogWarning($"Login attempt failed: User {user.Email} is locked out.");
-                return new ResponseDto
-                {
-                    IsSucceeded = false,
                     Status = 403,
-                    Message = "Your account is locked. Try again later."
+                    Message = "Email not confirmed. Please confirm your email before logging in."
                 };
             }
 
-            bool isPasswordValid = await _userManager.CheckPasswordAsync(user, loginDto.Password);
-            if (!isPasswordValid)
+            bool result = await _userManager.CheckPasswordAsync(user, loginDto.Password);
+            if (!result)
             {
-                await _userManager.AccessFailedAsync(user);
-                _logger.LogWarning($"Login failed: Incorrect password for user {user.Email}");
-
                 return new ResponseDto
                 {
-                    IsSucceeded = false,
-                    Status = 400,
-                    Message = "Invalid email or password."
+                    Status = 401,
+                    Message = "Invalid email or password." 
                 };
             }
-
-            // Reset failed attempts on successful login
-            await _userManager.ResetAccessFailedCountAsync(user);
 
             var token = await GenerateJwtTokenAsync(user);
 
@@ -384,7 +506,6 @@ namespace OurHeritage.Service.Implementations
                 return response;
             }
 
-            // Check if OTP has expired
             if (DateTime.UtcNow > otpData.ExpiryTime)
             {
                 OtpStorage.TryRemove(dto.OtpCode, out _);
@@ -393,7 +514,6 @@ namespace OurHeritage.Service.Implementations
                 return response;
             }
 
-            // Find user by email from OTP data
             var user = await _userManager.FindByNameAsync(otpData.Email);
             if (user == null)
             {
@@ -458,7 +578,6 @@ namespace OurHeritage.Service.Implementations
 
 
 
-        // cleanup existing OTP for an email
         private void CleanupOtpForEmail(string email)
         {
             var existingOtpKeys = OtpStorage
@@ -487,10 +606,9 @@ namespace OurHeritage.Service.Implementations
             {
                 Email = email,
                 Code = otpCode,
-                ExpiryTime = DateTime.UtcNow.AddMinutes(10) // OTP expires in 10 minutes
+                ExpiryTime = DateTime.UtcNow.AddMinutes(10) 
             };
 
-            // Store with OTP code as key
             OtpStorage[otpCode] = otpData;
 
             return otpCode;

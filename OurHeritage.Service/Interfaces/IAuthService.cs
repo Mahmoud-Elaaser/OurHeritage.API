@@ -7,6 +7,8 @@ namespace OurHeritage.Service.Interfaces
     {
         Task<ResponseDto> RegisterAsync(RegisterDto registerDto);
         Task<ResponseDto> LoginAsync(LoginDto loginDto);
+        Task<ResponseDto> ConfirmEmailAsync(ConfirmEmailDto confirmEmailDto);
+        Task<ResponseDto> ResendConfirmationEmailAsync(string email);
         Task<ResponseDto> AssignRoleAsync(RoleDto dto);
         Task<ResponseDto> RemoveRoleAsync(RoleDto dto);
         Task<ResponseDto> UpdateRoleAsync(RoleDto updateRoleDto);

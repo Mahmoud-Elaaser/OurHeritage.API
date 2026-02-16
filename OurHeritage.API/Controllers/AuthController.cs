@@ -11,7 +11,6 @@ namespace OurHeritage.API.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    [Authorize]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
@@ -23,29 +22,48 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost("register")]
-        [AllowAnonymous]
         public async Task<IActionResult> RegisterUser([FromForm] RegisterDto model)
         {
             var result = await _authService.RegisterAsync(model);
-            if (result == null)
+            if (!result.IsSucceeded)
                 return BadRequest(new ApiResponse(result.Status, result.Message));
 
             return Ok(result);
         }
 
+        [HttpPost("confirmation-email")]
+        public async Task<IActionResult> ConfirmEmail([FromForm] ConfirmEmailDto confirmEmailDto)
+        {
+            var result = await _authService.ConfirmEmailAsync(confirmEmailDto);
+            if (result.Status == 200)
+                return Ok(result);
+                
+            return BadRequest(new ApiResponse(result.Status, result.Message));
+
+        }
+
+        [HttpPost("Resend-confirmation-email")]
+        public async Task<IActionResult> ResendConfirmationemail(string email)
+        {
+            var result = await _authService.ResendConfirmationEmailAsync(email);
+            if(!result.IsSucceeded)
+                return BadRequest(new ApiResponse(result.Status, result.Message));
+
+            return Ok(result);
+        }
 
         [HttpPost("login")]
-        [AllowAnonymous]
         public async Task<IActionResult> Login([FromForm] LoginDto model)
         {
             var result = await _authService.LoginAsync(model);
-            if (result == null)
+            if (!result.IsSucceeded)
                 return Unauthorized(result);
 
             return Ok(result);
         }
 
         [HttpGet("get-current-user")]
+        [Authorize]
         public IActionResult GetCurrentUserId()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -87,6 +105,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpPost("change-password")]
+        [Authorize]
         public async Task<IActionResult> ChangePassword([FromForm] ChangePasswordDto model)
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -138,6 +157,7 @@ namespace OurHeritage.API.Controllers
         }
 
         [HttpGet("is-admin")]
+        [Authorize]
         public async Task<IActionResult> IsCurrentUserAdmin()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -147,7 +167,6 @@ namespace OurHeritage.API.Controllers
                 return BadRequest(new { isAdmin = false, message = "User not authenticated." });
             }
 
-            // Get user from database
             var user = await _unitOfWork.Repository<User>().GetByIdAsync(userId);
             if (user == null)
             {
